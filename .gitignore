@@ -1,0 +1,28 @@
+# Segredos
+.env
+.env.*
+!.env.example
+
+# Mídia baixada (vídeos, áudios, frames, thumbnails) — nunca versionar
+data/media/
+data/cache/
+
+# Experimentos e artefatos grandes
+mlruns/
+mlartifacts/
+models/*
+!models/.gitkeep
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Sistema / editores
+.DS_Store
+.vscode/
+.idea/
