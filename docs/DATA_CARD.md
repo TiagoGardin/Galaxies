@@ -2,7 +2,9 @@
 
 ## Responsável e versão
 
-<!-- Quem montou, versão da base (ex.: base_v1), data. -->
+- **Responsável:** Tiago Gardin (Inteli Academy), case Galaxies.
+- **Versão:** `base_v1` (primeira coleta completa). Cada recoleta gera uma nova partição datada em `data/raw/`; a base processada só muda de versão quando os filtros ou a lista de canais mudam.
+- **Lista de canais:** [`data/canais.csv`](../data/canais.csv), revisada em 11/10/2026.
 
 ## Fonte
 
@@ -34,11 +36,26 @@ Fluxo de coleta, escolhido pelo custo de cota:
 
 - **Vídeos-alvo:** Shorts publicados entre **01/04/2025** e **(data da coleta − 30 dias)**. O início foi escolhido depois de duas mudanças da plataforma: o limite de 3 min dos Shorts (15/10/2024) e a mudança na contagem de views (31/03/2025).
 - **Vídeos de histórico:** Shorts anteriores a 01/04/2025 são coletados **só para calcular as features de histórico do canal** e não entram como alvo. Para cada canal, coleta-se o suficiente para que o primeiro vídeo-alvo tenha 20 Shorts publicados pelo menos 30 dias antes dele.
-- **Datas de coleta:** _a preencher_.
+- **Datas de coleta:** verificação de canais em 11/10/2026; coleta completa da `base_v1` _pendente_.
 
 ## Volume
 
-<!-- Nº de vídeos e canais, total e por setor e tipo de canal (marca/criador). Uma tabela. -->
+**Canais aprovados** (revisão de 11/10/2026):
+
+| Setor | Criadores | Marcas | Total |
+|---|---|---|---|
+| Beleza | 152 | 17 | 169 |
+| Moda | 56 | 35 | 91 |
+| **Total** | **208** | **52** | **260** |
+
+Nos 200 uploads mais recentes de cada canal, os 260 canais somam **pelo menos 29.932 Shorts** com curtidas visíveis na janela-alvo. É um limite inferior, porque nem todo canal teve a janela inteira lida na verificação.
+
+**Vídeos na `base_v1`:** _pendente: preencher após a coleta completa (total, por setor, por tipo e por porte; vídeos-alvo × vídeos só de histórico)._
+
+| | Vídeos-alvo | Vídeos de histórico | Canais |
+|---|---|---|---|
+| Beleza | _pendente_ | _pendente_ | 169 |
+| Moda | _pendente_ | _pendente_ | 91 |
 
 ## Filtros aplicados
 
@@ -66,15 +83,37 @@ Fluxo de coleta, escolhido pelo custo de cota:
 
 ## Esquema de colunas
 
-<!-- Tabela: coluna | tipo | descrição | origem. -->
+Esquema de `data/processed/base_v1.parquet` (uma linha por Short). Compatível com o esquema mínimo de retreino do TAPI (`post_id`, `channel_id`, `published_at`, `caption`, `media_ref`, `metric_target`, `channel_stats_at_collection`, `sector`), indicado na última coluna.
 
-| Coluna | Tipo | Descrição | Origem |
-|---|---|---|---|
-| | | | |
+| Coluna | Tipo | Descrição | Origem | Esquema TAPI |
+|---|---|---|---|---|
+| `video_id` | str | ID do vídeo (chave única) | `videos.list` | `post_id` |
+| `channel_id` | str | ID do canal | `videos.list` | `channel_id` |
+| `published_at` | datetime (UTC) | Data e hora de publicação | `snippet.publishedAt` | `published_at` |
+| `title` | str | Título atual | `snippet.title` | `caption` (com `description`) |
+| `description` | str | Descrição atual | `snippet.description` | `caption` |
+| `tags` | list[str] | Tags declaradas | `snippet.tags` | — |
+| `category_id` | str | Categoria do YouTube | `snippet.categoryId` | — |
+| `duration_s` | int | Duração em segundos | `contentDetails.duration` | — |
+| `thumbnail_url` | str | URL da thumbnail de maior resolução | `snippet.thumbnails` | `media_ref` |
+| `url` | str | `https://www.youtube.com/shorts/<video_id>` | derivado | `media_ref` |
+| `likes` | int | Curtidas na data da coleta | `statistics.likeCount` | `metric_target` |
+| `views` | int | Visualizações na data da coleta (**só análise, nunca feature**) | `statistics.viewCount` | — |
+| `comments` | int | Comentários na data da coleta (**só análise, nunca feature**) | `statistics.commentCount` | — |
+| `collected_at` | datetime (UTC) | Data da coleta desta linha | coleta | — |
+| `channel_subscribers_at_collection` | int | Inscritos do canal no dia da coleta (arredondado pela API; **nunca feature**) | `channels.list` | `channel_stats_at_collection` |
+| `sector` | str | `beleza` ou `moda` | `data/canais.csv` | `sector` |
+| `channel_type` | str | `marca` ou `criador` | `data/canais.csv` | — |
+| `is_target` | bool | `True` se está na janela-alvo e passa nos filtros; `False` se serve só de histórico | derivado | — |
 
 ## Termos de uso e ética
 
-<!-- Termos da YouTube API, dados públicos, o que não é redistribuído (mídia). -->
+- **Fonte oficial:** coleta só pela YouTube Data API v3, dentro dos [Termos de Serviço da API](https://developers.google.com/youtube/terms/api-services-terms-of-service) e da cota gratuita. Sem scraping de páginas.
+- **Dados públicos:** só metadados e métricas públicas de canais e vídeos públicos. Nenhum dado de usuário, comentário individual ou informação privada é coletado.
+- **Mídia não é redistribuída:** vídeos, áudios, frames e thumbnails baixados para a camada multimodal ficam em `data/media/`, que é ignorado pelo git. O repositório guarda só IDs, metadados e features derivadas.
+- **VLM no free tier do Gemini:** os vídeos enviados podem ser usados pelo Google para treino. É aceitável porque são vídeos públicos, sem dados pessoais além do que o próprio criador publicou.
+- **Atualidade:** os Termos da API pedem que dados armazenados sejam atualizados ou apagados periodicamente. As coletas são datadas e a base é de uso acadêmico, sem republicação.
+- **Uso pretendido:** pesquisa e prova de conceito para a Galaxies. A base não deve ser usada para avaliar ou ranquear criadores individualmente fora deste contexto.
 
 ## Vieses e limitações — o que a base NÃO representa
 
@@ -85,4 +124,7 @@ Fluxo de coleta, escolhido pelo custo de cota:
 - **Heurística de Short:** baseada só na duração. Vídeos horizontais curtos podem entrar.
 - **Recorte:** só moda e beleza, só Brasil, só canais com curtidas visíveis. Não representa outros setores, países ou plataformas (TikTok, Instagram).
 - **Poucos vídeos de marca:** muitas marcas brasileiras de moda e beleza postam poucos ou nenhum Short no YouTube (na verificação, Riachuelo, Sallve, FARM Rio, Nivea, Garnier, Malwee, Sephora Brasil, L'Oréal Paris Brasil e AMARO ficaram abaixo de 10 Shorts com curtidas na janela). Mesmo com o mínimo reduzido para marcas, a base é dominada em volume por criadores, e o desempenho do modelo em canais de marca, que são os clientes da Galaxies, é menos garantido. Reportar as métricas separadas por tipo de canal.
-- _Completar após a coleta (ex.: distribuição por porte, concentração por canal)._
+- **Desequilíbrio de porte em moda:** só 2 canais de moda têm mais de 500 mil inscritos, contra 40 em beleza. O modelo vê poucos exemplos de canais de moda muito grandes.
+- **Mais beleza que moda:** 169 contra 91 canais. Reportar as métricas separadas por setor.
+- **Revisão manual com amostra:** a decisão de incluir cada canal usou uma amostra de títulos, descrições e thumbnails, e não o conteúdo completo. Pode haver canais incluídos com parte dos Shorts não autoral.
+- _Pendente: completar após a coleta com a concentração por canal (quantos canais somam 50% dos vídeos) e a distribuição de curtidas._
