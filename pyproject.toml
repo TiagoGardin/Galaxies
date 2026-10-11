@@ -1,0 +1,21 @@
+[project]
+name = "galaxies-tool"
+version = "0.1.0"
+description = "Agente preditivo de performance de YouTube Shorts (moda e beleza) — case Galaxies"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "google-api-python-client",
+    "pandas",
+    "pyarrow",
+    "python-dotenv",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/galaxies_tool"]
+
+[tool.ruff]
+line-length = 110
