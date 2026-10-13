@@ -1,0 +1,46 @@
+{
+  "coleta": "2026-10-12",
+  "coletado_entre": [
+    "2026-10-12 18:34:44+00:00",
+    "2026-10-12 19:31:47+00:00"
+  ],
+  "funil": {
+    "brutos": 112627,
+    "shorts": 84166,
+    "shorts_com_curtidas": 83498,
+    "shorts_maduros": 79402,
+    "na_janela_alvo": 68083,
+    "texto_pos_publicacao_na_janela": 1,
+    "fora_do_teto_250": 26517,
+    "alvos": 41565,
+    "alvos_com_historico_minimo": 40865,
+    "so_historico": 37837
+  },
+  "canais_com_videos": 260,
+  "canais_com_alvos_elegiveis": 258,
+  "periodo_alvos": [
+    "2025-04-01",
+    "2026-09-12"
+  ],
+  "periodo_historico_inicio": "2021-07-08",
+  "elegiveis_por_setor_tipo": {
+    "beleza|criador": 24539,
+    "beleza|marca": 2143,
+    "moda|criador": 9207,
+    "moda|marca": 4976
+  },
+  "elegiveis_por_porte": {
+    "médio (20–100k)": 13990,
+    "grande (100–500k)": 11089,
+    "pequeno (<20k)": 8507,
+    "muito grande (>500k)": 7279
+  },
+  "elegiveis_demo": 688,
+  "canais_para_50pct_dos_elegiveis": 82,
+  "curtidas_elegiveis": {
+    "p10": 19.0,
+    "mediana": 374.0,
+    "p90": 4826.399999999994,
+    "p99": 66196.32
+  }
+}
