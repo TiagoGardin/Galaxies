@@ -14,7 +14,7 @@ alvo = log1p(curtidas) − log1p(mediana de curtidas dos últimos (até) 20 Shor
 - **Conversão para o contrato da tool:** `predicted_metric = (1 + mediana_canal) × e^(previsão) − 1` (inversa exata do `log1p`); `relative_to_channel` é a própria previsão; os quantis do intervalo são convertidos da mesma forma.
 - **Mínimo de histórico:** pelo menos 5 Shorts anteriores para entrar no treino. Abaixo disso, a tool liga o `confidence_flag`.
 
-**Alvo secundário (comunicação):** a previsão relativa é convertida em faixas, pela razão `curtidas previstas / mediana do canal`:
+**Alvo secundário (comunicação):** a previsão relativa é convertida em faixas pela razão `(1 + curtidas previstas) / (1 + mediana do canal)`, que é exatamente `e^alvo` (para contagens altas, praticamente igual a curtidas / mediana):
 
 | Faixa | Razão prevista | Alvo relativo |
 |---|---|---|
@@ -36,7 +36,7 @@ As faixas são simétricas em escala log (0,67 ≈ 1/1,5) e são avaliadas com F
   - menos de 5 Shorts no histórico do canal;
   - intervalo de 80% mais largo que o percentil 90 das larguras na validação;
   - features multimodais ausentes (download ou VLM falhou);
-  - canal com `std_log_likes_ult20` acima do percentil 90 da base.
+  - canal com `std_log_likes_ult20` acima do percentil 90 do treino.
 
 ## Features
 

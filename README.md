@@ -20,8 +20,7 @@ Hoje, quando um time de marketing envia criativos para a Galaxies, as personas s
 
 - **Origem:** YouTube Data API v3, coleta própria (o caminho `channels` → playlist de uploads → `videos`, sem `search.list` para listar vídeos).
 - **Canais:** 260 canais brasileiros (169 de beleza e 91 de moda; 208 criadores e 52 marcas), selecionados a partir de sementes e de uma descoberta por busca, com verificação automática e revisão manual de cada canal, inclusive das thumbnails, para excluir repostagens, compilações e conteúdo gerado por IA.
-- **Período:** Shorts publicados de 01/04/2025 até 30 dias antes da coleta (curtidas estabilizadas).
-- **Volume:** pelo menos ~30 mil Shorts com curtidas visíveis; _volume final da `base_v1` pendente da coleta completa_.
+- **Volume (`base_v1`, coleta de 12/10/2026):** 79.402 Shorts, dos quais **40.865 são vídeos-alvo elegíveis** (01/04/2025 a 12/09/2026) em 258 canais e o restante serve de histórico. Split temporal: 22.430 treino, 4.774 validação, 4.861 teste, mais 1.146 vídeos de 51 canais nunca vistos.
 
 Detalhes, filtros, esquema de colunas, termos de uso e vieses: [docs/DATA_CARD.md](docs/DATA_CARD.md)
 
@@ -68,13 +67,22 @@ cp .env.example .env         # preencha YOUTUBE_API_KEY e GEMINI_API_KEY
 **Etapas já implementadas** (rodar da raiz do repositório):
 
 ```bash
-uv run python -m galaxies_tool.descobrir_canais   # descoberta de canais (~2.400 unidades de cota)
+# 1. Seleção de canais (já executada; resultado revisado em data/canais.csv)
+uv run python -m galaxies_tool.descobrir_canais   # descoberta via busca (~2.400 unidades de cota)
 uv run python -m galaxies_tool.verificar_canais   # verificação contra os critérios do data card
+
+# 2. Base de dados
+uv run python -m galaxies_tool.coletar            # coleta dos canais incluídos → data/raw/coleta=AAAA-MM-DD/
+uv run python -m galaxies_tool.processar          # filtros + validação → data/processed/base_v1.parquet
+uv run python -m galaxies_tool.splits             # cortes do experimento → data/processed/splits_v1.json
+
+# Testes
+uv run pytest
 ```
 
-A lista revisada de canais está em `data/canais.csv`.
+A coleta guarda um cache por canal em `data/cache/` e pode ser retomada se for interrompida (por exemplo, se a cota diária acabar).
 
-**Etapas em construção** (os comandos serão documentados aqui conforme forem implementados): coleta completa da `base_v1`, extração de features, treino com registro no MLflow, agente, servidor MCP e testes (`uv run pytest`).
+**Etapas em construção** (os comandos serão documentados aqui conforme forem implementados): extração de features, treino com registro no MLflow, agente e servidor MCP.
 
 ## 5. Modelos e configurações
 
@@ -97,7 +105,7 @@ Detalhes: [docs/MODEL_CARD.md](docs/MODEL_CARD.md) · [docs/FEATURES.md](docs/FE
 
 ## 6. Metodologia
 
-- **Alvo:** `log1p(curtidas) − log1p(mediana dos últimos 20 Shorts do canal publicados ≥ 30 dias antes)`; o baseline (mediana do canal) equivale a prever zero.
+- **Alvo:** `log1p(curtidas) − log1p(mediana dos últimos (até) 20 Shorts do canal publicados ≥ 30 dias antes)`; o baseline (mediana do canal) equivale a prever zero.
 - **Features em 4 blocos**, medidos por ablação: A (canal, tempo, metadados), B (texto), C (visual e áudio offline), D (VLM).
 - **Validação:** split temporal treino/validação/teste (~70/15/15) como principal, mais um split por canal (20% dos canais nunca vistos). Sem validação cruzada aleatória. O teste é avaliado uma única vez.
 - **Métricas:** MAE-log, MAPE, Spearman global e intra-canal, acurácia par-a-par intra-canal, cobertura do intervalo de 80% e F1 das faixas, todas também por setor e por tipo de canal.

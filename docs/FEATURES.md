@@ -23,7 +23,7 @@ Pergunta do bloco: **sem olhar o conteúdo, o que já dá para saber?** Todas as
 | `log_mediana_likes_ult20` | Patamar normal de curtidas do canal | `log1p` da mediana de curtidas dos últimos (até) 20 Shorts do histórico | Mede o tamanho da audiência no momento do post; mediana resiste a um viral isolado. É também o denominador do alvo |
 | `std_log_likes_ult20` | Volatilidade do canal | Desvio padrão de `log1p(curtidas)` dos mesmos Shorts | Canal estável fica perto da mediana; instável oscila. Alimenta o intervalo e o `confidence_flag` |
 | `tendencia` | Canal em alta ou em queda | `log1p(mediana ult5) − log1p(mediana ult20)` | Canal crescendo tende a superar a própria média |
-| `n_shorts_anteriores` | Tamanho do histórico | Contagem de Shorts publicados antes do alvo (histórico completo, sem teto) | Histórico curto = menos confiança |
+| `n_shorts_anteriores` | Tamanho do histórico (truncado em 25) | `min(n_historico, 25)`: Shorts do canal publicados ≥ 30 dias antes do alvo | Histórico curto = menos confiança. O teto de 25 é necessário: a coleta só garante a contagem exata até 25 (ver DATA_CARD); acima disso o número dependeria de onde a coleta parou e viraria um indicador disfarçado de data |
 | `shorts_ult_30d` | Frequência recente de postagem | Shorts publicados nos 30 dias antes do alvo | Frequência afeta distribuição pelo algoritmo e divisão da audiência |
 | `dias_desde_ultimo_post` | Intervalo desde o último Short | Dias entre o alvo e o Short anterior | Volta após pausa longa tem comportamento diferente |
 | `tipo_canal` | Marca ou criador | `data/canais.csv` | Engajamento orgânico difere entre marcas e criadores |
@@ -31,7 +31,7 @@ Pergunta do bloco: **sem olhar o conteúdo, o que já dá para saber?** Todas as
 | `hora` | Hora local da publicação | `published_at` convertido para `America/Sao_Paulo` | Audiência online varia ao longo do dia; variável controlável pela marca |
 | `dia_semana`, `fim_de_semana` | Dia da publicação | Idem | Idem |
 | `data_sazonal` | Data comercial relevante | Flag para janelas de Black Friday, Dia das Mães, Dia dos Namorados e Natal | Picos de interesse em moda e beleza |
-| `mes` | Mês da publicação | Idem | Sazonalidade. **Só entra se o treino cobrir 12 meses**; senão o teste teria meses nunca vistos |
+| `mes` | Mês da publicação | Idem | Sazonalidade. Só entra se o treino cobrir 12 meses; na `base_v1` cobre 12,7, então **entra** |
 | `duracao_s` | Duração do Short | `contentDetails.duration` | Shorts curtos tendem a ter retenção maior |
 | `categoria_id` | Categoria declarada | `snippet.categoryId` | Sinal fraco do tipo de conteúdo |
 | `n_tags` | Quantidade de tags | `len(snippet.tags)` | Cuidado com descoberta/SEO; sinal fraco |

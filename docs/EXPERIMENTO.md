@@ -26,11 +26,27 @@ Como o alvo é **relativo ao canal**, o Spearman global é calculado sobre o alv
 ### Splits
 Validação cruzada aleatória **não é usada** para as métricas finais.
 
-1. **Canais de demonstração:** 3–4 canais (coluna `demo` em `data/canais.csv`) ficam fora de tudo e servem só para o "de-para" da apresentação.
-2. **Temporal (principal):** os vídeos-alvo são ordenados por `published_at` e cortados em **treino (~70%) / validação (~15%) / teste (~15%)**. As datas de corte são fixadas após a coleta, registradas aqui e nunca mudadas depois de olhar o teste. Se o treino cobrir menos de 12 meses, a feature `mes` sai do modelo.
-   - Corte treino → validação: _pendente_
-   - Corte validação → teste: _pendente_
-3. **Por canal (canais não vistos):** 20% dos canais, estratificados por setor e tipo, são retirados do treino e da validação. Seus vídeos do período de teste formam o conjunto "canais novos", que mede a generalização para um cliente novo.
+Implementação: `python -m galaxies_tool.splits` → `data/processed/splits_v1.json` (datas de corte, semente e listas de canais). Só entram vídeos com `elegivel_treino` (alvo com pelo menos 5 Shorts de histórico).
+
+1. **Canais de demonstração:** os 4 canais com `demo = sim` em `data/canais.csv` (Eudora, Alice Salazar, Luciane Cachinski, Liza Block) ficam fora de treino, validação e teste. Servem só para o "de-para" da apresentação.
+2. **Canais novos:** 20% dos demais canais, sorteados dentro de cada estrato setor × tipo (semente 42), ficam fora do treino e da validação. Seus vídeos do período de teste formam o conjunto **teste em canais novos**; os vídeos anteriores ao corte não são usados.
+3. **Temporal (principal):** os vídeos elegíveis dos canais restantes são cortados por `published_at` nos quantis de 70% e 85% (arredondados para o início do dia, UTC): **treino (~70%) / validação (~15%) / teste temporal (~15%)**. As datas de corte ficam registradas aqui e não mudam depois de olhar o teste. Se o treino cobrir menos de 12 meses, a feature `mes` sai do modelo.
+   - Corte treino → validação: **23/04/2026**
+   - Corte validação → teste: **02/07/2026**
+   - O treino cobre 12,7 meses (01/04/2025 a 22/04/2026), então a feature `mes` **entra** no modelo.
+
+Tamanho dos conjuntos (`base_v1`, coleta de 12/10/2026):
+
+| Conjunto | Vídeos | Criadores / marcas | Período |
+|---|---|---|---|
+| Treino | 22.430 | 18.354 / 4.076 | 01/04/2025 – 22/04/2026 |
+| Validação | 4.774 | 4.008 / 766 | 23/04/2026 – 01/07/2026 |
+| Teste temporal | 4.861 | 3.953 / 908 | 02/07/2026 – 12/09/2026 |
+| Teste em canais novos (51 canais) | 1.146 | 950 / 196 | 02/07/2026 – 12/09/2026 |
+| Não usados (vídeos dos canais novos antes do corte) | 6.966 | 6.130 / 836 | — |
+| Canais de demonstração (4) | 688 | — | — |
+
+Canais novos por estrato: beleza/criador 30, beleza/marca 3, moda/criador 11, moda/marca 7. A lista está em `splits_v1.json`.
 
 Hiperparâmetros e calibração do intervalo usam só a validação. O teste é avaliado **uma única vez**, no modelo final.
 
@@ -38,10 +54,10 @@ Hiperparâmetros e calibração do intervalo usam só a validação. O teste é 
 | Métrica | Definição | Por que |
 |---|---|---|
 | MAE-log | Erro absoluto médio no alvo (escala log) | Erro típico em "quantas vezes" o vídeo fica acima/abaixo do canal |
-| MAPE | Erro percentual médio em curtidas, após converter a previsão de volta | Erro relativo legível para o cliente |
+| MAPE | Erro percentual médio sobre `1 + curtidas`, após converter a previsão de volta. O `+1` é necessário porque 372 vídeos-alvo têm 0 curtidas (divisão por zero) e é coerente com o `log1p` do alvo | Erro relativo legível para o cliente |
 | Spearman global | Correlação de postos entre previsão e real em todo o teste | Ordenação geral |
-| Spearman intra-canal | Média do Spearman calculado dentro de cada canal (canais com ≥ 5 vídeos no teste) | Ordenação entre criativos da mesma marca, que é a decisão real |
-| Acurácia par-a-par intra-canal | Fração de pares de vídeos do mesmo canal em que o modelo ordena igual ao real (pares empatados no real são ignorados) | "Qual de dois criativos rende mais", a pergunta da Galaxies |
+| Spearman intra-canal | Média do Spearman calculado dentro de cada canal (canais com ≥ 5 vídeos no teste). Indefinido para previsões constantes, como a do baseline 1 | Ordenação entre criativos da mesma marca, que é a decisão real |
+| Acurácia par-a-par intra-canal | Fração de pares de vídeos do mesmo canal em que o modelo ordena igual ao real. Pares empatados no real são ignorados; empate na previsão conta meio acerto | "Qual de dois criativos rende mais", a pergunta da Galaxies |
 | Cobertura do intervalo | Fração de vídeos com curtidas reais dentro do intervalo de 80% | Calibração da incerteza (alvo: ~80%) |
 | F1 macro das faixas | F1 nas faixas abaixo / na média / acima / viral | Qualidade da comunicação em categorias |
 
@@ -59,7 +75,7 @@ Cada execução é registrada no MLflow (`mlruns/`, local): parâmetros, versão
 
 | Modelo | MAE-log | MAPE | Spearman | Spearman intra-canal | Acurácia par-a-par | Cobertura do intervalo | F1 faixas |
 |---|---|---|---|---|---|---|---|
-| Baseline 1 (mediana do canal) | _pendente_ | | | | 50% (empate) | — | |
+| Baseline 1 (mediana do canal) | _pendente_ | _pendente_ | _pendente_ | indefinido | 50% (todos empatados) | — | _pendente_ |
 | Baseline 2 (linear) | _pendente_ | | | | | — | |
 | LightGBM A+B+C+D | _pendente_ | | | | | | |
 

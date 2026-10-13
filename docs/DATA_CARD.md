@@ -35,8 +35,8 @@ Fluxo de coleta, escolhido pelo custo de cota:
 ## Período e coletas
 
 - **Vídeos-alvo:** Shorts publicados entre **01/04/2025** e **(data da coleta − 30 dias)**. O início foi escolhido depois de duas mudanças da plataforma: o limite de 3 min dos Shorts (15/10/2024) e a mudança na contagem de views (31/03/2025).
-- **Vídeos de histórico:** Shorts anteriores a 01/04/2025 são coletados **só para calcular as features de histórico do canal** e não entram como alvo. Para cada canal, coleta-se o suficiente para que o primeiro vídeo-alvo tenha 20 Shorts publicados pelo menos 30 dias antes dele.
-- **Datas de coleta:** verificação de canais em 11/10/2026; coleta completa da `base_v1` _pendente_.
+- **Vídeos de histórico:** Shorts anteriores a 01/04/2025 são coletados **só para calcular as features de histórico do canal** e não entram como alvo. A coleta de cada canal desce pela playlist até ter 25 Shorts com curtidas publicados antes de 02/03/2025 (20 da janela de histórico + 5 de margem) ou até o fim da playlist. Assim, a contagem de Shorts anteriores é exata até 25 em todos os canais; acima disso, depende de onde a coleta parou.
+- **Datas de coleta:** verificação de canais em 11/10/2026; coleta completa da `base_v1` em 12/10/2026, entre 15h34 e 16h31 (horário de Brasília). Cota usada: cerca de 4.500 unidades (em três execuções, por duas quedas de rede; o cache evitou recoletar canais). Os canais da primeira execução foram coletados quando a regra de Short ainda não excluía vídeos anteriores a 07/2021; isso só afetou o ponto de parada (8 canais desceram até vídeos antigos), sem perda de dados: todos os Shorts reais desses canais foram coletados.
 
 ## Volume
 
@@ -48,14 +48,38 @@ Fluxo de coleta, escolhido pelo custo de cota:
 | Moda | 56 | 35 | 91 |
 | **Total** | **208** | **52** | **260** |
 
-Nos 200 uploads mais recentes de cada canal, os 260 canais somam **pelo menos 29.932 Shorts** com curtidas visíveis na janela-alvo. É um limite inferior, porque nem todo canal teve a janela inteira lida na verificação.
+**Vídeos na `base_v1`** (coleta de 12/10/2026, resumo completo em `data/processed/base_v1_resumo.json`):
 
-**Vídeos na `base_v1`:** _pendente: preencher após a coleta completa (total, por setor, por tipo e por porte; vídeos-alvo × vídeos só de histórico)._
-
-| | Vídeos-alvo | Vídeos de histórico | Canais |
+| Setor | Canais | Vídeos-alvo elegíveis (criadores / marcas) | Vídeos só de histórico |
 |---|---|---|---|
-| Beleza | _pendente_ | _pendente_ | 169 |
-| Moda | _pendente_ | _pendente_ | 91 |
+| Beleza | 169 (167 com alvos) | 26.682 (24.539 / 2.143) | 23.064 |
+| Moda | 91 | 14.183 (9.207 / 4.976) | 14.773 |
+| **Total** | **260 (258 com alvos)** | **40.865 (33.746 / 7.119)** | **37.837** |
+
+Além desses, 700 vídeos-alvo ficam fora do treino por terem menos de 5 Shorts de histórico.
+
+- **Período dos vídeos-alvo:** 01/04/2025 a 12/09/2026. O histórico começa em 08/07/2021.
+- **Vídeos-alvo elegíveis por canal:** mediana de 165, de 9 a 250 (teto).
+- **Curtidas dos vídeos-alvo elegíveis:** p10 = 19, mediana = 374, p90 = 4.826, p99 = 66.196. A mediana é de 501 nos criadores e de 43 nas marcas.
+- **Por porte do canal:** médio 13.990, grande 11.089, pequeno 8.507, muito grande 7.279.
+- **Canais de demonstração:** 688 vídeos elegíveis, fora de treino e avaliação.
+
+**Funil de filtros** (do bruto à base):
+
+| Etapa | Vídeos |
+|---|---|
+| Uploads coletados (todos os formatos) | 112.627 |
+| Shorts (data e duração) | 84.166 |
+| Com curtidas visíveis | 83.498 |
+| Com pelo menos 30 dias na coleta (`base_v1`) | 79.402 |
+| Na janela-alvo (a partir de 01/04/2025) | 68.083 |
+| − texto que comenta o desempenho do próprio vídeo | 1 |
+| − além do teto de 250 por canal (ficam como histórico) | 26.517 |
+| **Vídeos-alvo (`is_target`)** | **41.565** |
+| − sem 5 Shorts de histórico | 700 |
+| **Vídeos-alvo elegíveis ao treino (`elegivel_treino`)** | **40.865** |
+
+Dois canais incluídos (Carolina Bruna e Val Petrin) não têm nenhum vídeo-alvo elegível: publicaram quase todos os Shorts em poucas semanas, sem histórico de 30 dias.
 
 ## Filtros aplicados
 
@@ -63,27 +87,28 @@ Nos 200 uploads mais recentes de cada canal, os 260 canais somam **pelo menos 29
 
 | Filtro | Regra | Motivo |
 |---|---|---|
-| Definição de Short | Duração ≤ 180 s (≤ 60 s para vídeos publicados antes de 15/10/2024) | A API não informa se o vídeo é Short nem se é vertical. O limite segue a regra da plataforma em cada época. |
+| Definição de Short | Publicado a partir de 01/07/2021 e duração ≤ 180 s (≤ 60 s antes de 15/10/2024); lives e estreias sem duração ficam fora | A API não informa se o vídeo é Short nem se é vertical. O limite segue a regra da plataforma em cada época, e vídeos curtos anteriores ao lançamento global dos Shorts (07/2021) não eram Shorts. |
 | Idade mínima | ≥ 30 dias na data da coleta | Curtidas já estabilizadas. |
 | Curtidas ocultas | `likeCount` ausente → **excluído** (alvo e histórico), nunca tratado como 0 | Ausente ≠ zero. |
 | Duplicatas | Chave `video_id`; recoletas não duplicam linhas | Cada coleta é guardada na própria partição com `collected_at`. |
-| Texto editado após publicação | Título/descrição com termos como "viralizou", "1 milhão", "obrigad\* pelos" → **excluído do treino** | O texto atual reflete o resultado, não o criativo original. |
-| Teto por canal | Máximo de **250 vídeos-alvo** por canal (os mais recentes da janela) | Evita que poucos canais grandes dominem o treino. O histórico usa todos os Shorts. |
+| Texto editado após publicação | Título ou descrição que comenta o desempenho do **próprio vídeo** ("esse vídeo viralizou", "obrigada pelos 100 mil views", "1 milhão de visualizações") → **não é alvo**, fica só como histórico. Regex em `regras.TEXTO_POS_PUBLICACAO` | O texto atual reflete o resultado, não o criativo original. "Viralizou" sozinho não conta: "testei a base que viralizou" fala do produto. |
+| Teto por canal | Máximo de **250 vídeos-alvo** por canal, **espaçados uniformemente no tempo** ao longo da janela | Evita que poucos canais muito ativos dominem a base. Pegar os 250 mais recentes concentraria esses canais na validação e no teste e os tiraria do treino. O histórico usa todos os Shorts. |
+| Histórico mínimo | Vídeo-alvo só entra no treino (`elegivel_treino`) se o canal tiver pelo menos 5 Shorts publicados ≥ 30 dias antes dele | Sem histórico não há denominador confiável para o alvo relativo. |
 
 ### Canais
 
 | Critério | Regra |
 |---|---|
 | Geografia | Canais brasileiros, conteúdo para o público brasileiro (pt-BR). O filtro é **por canal**: vídeos com música em outro idioma entram normalmente. |
-| Setores | Moda e beleza, ~50/50. |
+| Setores | Moda e beleza. A meta era ~50/50, mas a revisão manual aprovou mais canais de beleza: 169 contra 91 (65%/35%). |
 | Tipo | Marcas e criadores, com pelo menos 40% de criadores. |
 | Porte | Pequenos, médios e grandes. |
 | Volume | Pelo menos 30 Shorts na janela de alvo, com curtidas visíveis. **Marcas: pelo menos 10**, porque postam menos Shorts e são o perfil de cliente da Galaxies. |
-| Canais de demonstração | 3–4 canais reservados, **nunca usados no treino**, para o "de-para" da apresentação. |
+| Canais de demonstração | 4 canais (`demo = sim`): Eudora, Alice Salazar, Luciane Cachinski e Liza Block. **Nunca usados no treino nem na avaliação.** |
 
 ## Esquema de colunas
 
-Esquema de `data/processed/base_v1.parquet` (uma linha por Short). Compatível com o esquema mínimo de retreino do TAPI (`post_id`, `channel_id`, `published_at`, `caption`, `media_ref`, `metric_target`, `channel_stats_at_collection`, `sector`), indicado na última coluna.
+Esquema de `data/processed/base_v1.parquet` (uma linha por Short com curtidas visíveis e pelo menos 30 dias de vida), validado com pandera em `galaxies_tool/processar.py`. Gerado por `python -m galaxies_tool.processar`; o resumo numérico fica em `data/processed/base_v1_resumo.json`. Compatível com o esquema mínimo de retreino do TAPI (`post_id`, `channel_id`, `published_at`, `caption`, `media_ref`, `metric_target`, `channel_stats_at_collection`, `sector`), indicado na última coluna.
 
 | Coluna | Tipo | Descrição | Origem | Esquema TAPI |
 |---|---|---|---|---|
@@ -98,13 +123,17 @@ Esquema de `data/processed/base_v1.parquet` (uma linha por Short). Compatível c
 | `thumbnail_url` | str | URL da thumbnail de maior resolução | `snippet.thumbnails` | `media_ref` |
 | `url` | str | `https://www.youtube.com/shorts/<video_id>` | derivado | `media_ref` |
 | `likes` | int | Curtidas na data da coleta | `statistics.likeCount` | `metric_target` |
-| `views` | int | Visualizações na data da coleta (**só análise, nunca feature**) | `statistics.viewCount` | — |
-| `comments` | int | Comentários na data da coleta (**só análise, nunca feature**) | `statistics.commentCount` | — |
+| `views` | int (pode faltar) | Visualizações na data da coleta (**só análise, nunca feature**) | `statistics.viewCount` | — |
+| `comments` | int (pode faltar) | Comentários na data da coleta (**só análise, nunca feature**) | `statistics.commentCount` | — |
 | `collected_at` | datetime (UTC) | Data da coleta desta linha | coleta | — |
-| `channel_subscribers_at_collection` | int | Inscritos do canal no dia da coleta (arredondado pela API; **nunca feature**) | `channels.list` | `channel_stats_at_collection` |
+| `channel_subscribers_at_collection` | int (pode faltar) | Inscritos do canal no dia da coleta (arredondado pela API; **nunca feature**) | `channels.list` | `channel_stats_at_collection` |
 | `sector` | str | `beleza` ou `moda` | `data/canais.csv` | `sector` |
 | `channel_type` | str | `marca` ou `criador` | `data/canais.csv` | — |
-| `is_target` | bool | `True` se está na janela-alvo e passa nos filtros; `False` se serve só de histórico | derivado | — |
+| `is_demo_channel` | bool | Canal reservado para a demonstração (fora de treino e avaliação) | `data/canais.csv` | — |
+| `texto_pos_publicacao` | bool | Título/descrição comenta o desempenho do próprio vídeo | derivado (regex) | — |
+| `n_historico` | int | Shorts do canal (na base) publicados ≥ 30 dias antes deste | derivado | — |
+| `is_target` | bool | Na janela-alvo, sem texto pós-publicação e dentro do teto de 250 por canal; `False` = só histórico | derivado | — |
+| `elegivel_treino` | bool | `is_target` e `n_historico` ≥ 5 | derivado | — |
 
 ## Termos de uso e ética
 
@@ -121,10 +150,13 @@ Esquema de `data/processed/base_v1.parquet` (uma linha por Short). Compatível c
 - **Viés de sobrevivência:** vídeos apagados ou privados (frequentemente os de baixo desempenho) não aparecem na API.
 - **Métricas medidas no dia da coleta, não na publicação:** as curtidas são acumuladas até a coleta, inclusive as dos vídeos usados como histórico. Os inscritos são os do dia da coleta, arredondados pela API para 3 dígitos significativos, e por isso **não são usados como feature**.
 - **Edição após a publicação:** título, descrição, tags e thumbnail retornados são a versão atual. Os casos óbvios são filtrados, os sutis não.
-- **Heurística de Short:** baseada só na duração. Vídeos horizontais curtos podem entrar.
+- **Heurística de Short:** baseada na data e na duração. Vídeos horizontais curtos publicados depois de 07/2021 podem entrar.
 - **Recorte:** só moda e beleza, só Brasil, só canais com curtidas visíveis. Não representa outros setores, países ou plataformas (TikTok, Instagram).
 - **Poucos vídeos de marca:** muitas marcas brasileiras de moda e beleza postam poucos ou nenhum Short no YouTube (na verificação, Riachuelo, Sallve, FARM Rio, Nivea, Garnier, Malwee, Sephora Brasil, L'Oréal Paris Brasil e AMARO ficaram abaixo de 10 Shorts com curtidas na janela). Mesmo com o mínimo reduzido para marcas, a base é dominada em volume por criadores, e o desempenho do modelo em canais de marca, que são os clientes da Galaxies, é menos garantido. Reportar as métricas separadas por tipo de canal.
-- **Desequilíbrio de porte em moda:** só 2 canais de moda têm mais de 500 mil inscritos, contra 40 em beleza. O modelo vê poucos exemplos de canais de moda muito grandes.
+- **Desequilíbrio de porte em moda:** na coleta, só 2 canais de moda tinham mais de 500 mil inscritos, contra 41 em beleza. O modelo vê poucos exemplos de canais de moda muito grandes.
 - **Mais beleza que moda:** 169 contra 91 canais. Reportar as métricas separadas por setor.
 - **Revisão manual com amostra:** a decisão de incluir cada canal usou uma amostra de títulos, descrições e thumbnails, e não o conteúdo completo. Pode haver canais incluídos com parte dos Shorts não autoral.
-- _Pendente: completar após a coleta com a concentração por canal (quantos canais somam 50% dos vídeos) e a distribuição de curtidas._
+- **Concentração:** 82 dos 258 canais com alvos somam 50% dos vídeos-alvo elegíveis; o teto de 250 por canal evita concentração maior.
+- **Engajamento de marcas é muito menor:** mediana de 43 curtidas por Short nas marcas, contra 501 nos criadores. Com poucas curtidas, a variação ao acaso pesa mais e a previsão relativa fica mais ruidosa.
+- **Inconsistência da API:** 4 vídeos têm mais curtidas que visualizações (as contagens são atualizadas em momentos diferentes). Não afeta o modelo, que não usa visualizações.
+- **Falso positivo conhecido do filtro de texto:** o único vídeo marcado fala de um Reels ("O primeiro REELS já bateu 1 MILHÃO de views"), não do próprio Short. Impacto desprezível.
