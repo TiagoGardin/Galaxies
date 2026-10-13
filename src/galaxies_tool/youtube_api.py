@@ -5,6 +5,7 @@ import re
 import time
 from datetime import timedelta
 
+import httplib2
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
@@ -19,7 +20,7 @@ class YouTube:
         self.api = build("youtube", "v3", developerKey=os.environ["YOUTUBE_API_KEY"], cache_discovery=False)
         self.cota_usada = 0
 
-    def _executar(self, endpoint: str, request, tentativas: int = 4):
+    def _executar(self, endpoint: str, request, tentativas: int = 8):
         for i in range(tentativas):
             try:
                 resp = request.execute()
@@ -33,9 +34,9 @@ class YouTube:
                 temporario = e.resp.status >= 500 or "rateLimitExceeded" in erro
                 if not temporario:
                     raise
-                time.sleep(2**i)
-            except (TimeoutError, ConnectionError, OSError):  # falha de rede: tenta de novo
-                time.sleep(2**i)
+                time.sleep(min(2 ** (i + 1), 60))
+            except (TimeoutError, ConnectionError, OSError, httplib2.HttpLib2Error):  # falha de rede/DNS
+                time.sleep(min(2 ** (i + 1), 60))
         raise RuntimeError(f"Falha repetida em {endpoint}")
 
     def canal_por_handle(self, handle: str) -> dict | None:
