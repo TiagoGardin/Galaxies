@@ -51,7 +51,7 @@ Lista completa, regras anti-vazamento e features descartadas: [FEATURES.md](FEAT
 
 ## Métricas
 
-Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log, MAPE em curtidas, Spearman global e intra-canal, acurácia par-a-par intra-canal, cobertura do intervalo de 80% e F1 macro das faixas.
+Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log, MAPE em curtidas, Spearman global e intra-canal, acurácia par-a-par intra-canal (todos os pares e pares da mesma época, a até 7 dias), cobertura do intervalo de 80% e F1 macro das faixas.
 
 _Pendente: preencher com os números do conjunto de teste após o treino final, incluindo os baselines, o recorte por setor e por tipo de canal (marca × criador)._
 

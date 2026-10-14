@@ -87,7 +87,9 @@ O vídeo é baixado em 360p com yt-dlp; o ID do vídeo é a chave de cache de ca
 
 ## Bloco D — VLM
 
-Pergunta do bloco: **que julgamento de conteúdo um especialista faria?** O Gemini Flash-Lite recebe **só o vídeo** (URL pública do YouTube), sem título, canal ou métricas (regra 6), e responde um JSON fixo. Fallback local: Qwen-VL quantizado.
+Pergunta do bloco: **que julgamento de conteúdo um especialista faria?** O Gemini Flash-Lite (`gemini-3.1-flash-lite`, temperatura 0) recebe **só o vídeo** (URL pública do YouTube), sem título, canal ou métricas (regra 6), e responde um JSON fixo validado com Pydantic (`galaxies_tool/vlm.py`). Fallback local: Qwen-VL quantizado.
+
+Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente sobrecarregado (erro 503, ~30 s por vídeo quando respondia), o que inviabilizaria a amostra; o `gemini-2.5-flash-lite` não está mais disponível para contas novas. O `gemini-3.1-flash-lite` processa o vídeo de verdade (~8,7 mil tokens de entrada para 95 s) em 2–3 s. Toda a amostra usa o mesmo modelo; as 134 rubricas feitas antes com o 3.5 ficam em `data/features/vlm_gemini35/` só para medir a concordância entre os dois modelos. Resultado nesses 134 vídeos: campos sim/não concordam em 87–99% (o mais fraco é `tem_musica_de_fundo`); notas 0–10 têm Spearman 0,66–0,84 (o mais fraco é `forca_hook_0a10`); `audio_original_ou_musica` e `tom_narracao` concordam em 77–80%, e `formato` em 72% (contra 34% de acertar sempre a classe mais comum). A troca de modelo não muda o que a rubrica mede; `forca_hook_0a10` e `formato` são os campos mais subjetivos e serão conferidos contra os ~100 vídeos rotulados à mão.
 
 | Feature | Tipo | Por que ajuda |
 |---|---|---|

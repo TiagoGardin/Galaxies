@@ -108,7 +108,7 @@ Detalhes: [docs/MODEL_CARD.md](docs/MODEL_CARD.md) · [docs/FEATURES.md](docs/FE
 - **Alvo:** `log1p(curtidas) − log1p(mediana dos últimos (até) 20 Shorts do canal publicados ≥ 30 dias antes)`; o baseline (mediana do canal) equivale a prever zero.
 - **Features em 4 blocos**, medidos por ablação: A (canal, tempo, metadados), B (texto), C (visual e áudio offline), D (VLM).
 - **Validação:** split temporal treino/validação/teste (~70/15/15) como principal, mais um split por canal (20% dos canais nunca vistos). Sem validação cruzada aleatória. O teste é avaliado uma única vez.
-- **Métricas:** MAE-log, MAPE, Spearman global e intra-canal, acurácia par-a-par intra-canal, cobertura do intervalo de 80% e F1 das faixas, todas também por setor e por tipo de canal.
+- **Métricas:** MAE-log, MAPE, Spearman global e intra-canal, acurácia par-a-par intra-canal (com todos os pares e só com pares publicados a até 7 dias, que é a decisão real entre criativos), cobertura do intervalo de 80% e F1 das faixas, todas também por setor e por tipo de canal.
 - **Anti-vazamento:** só informação existente antes da publicação; histórico do canal só com Shorts maduros (≥ 30 dias antes); inscritos do dia da coleta nunca são feature; transformadores ajustados só no treino; `channel_id` nunca é feature; o VLM não recebe título, canal nem métricas. A lista completa e as features descartadas (com o motivo) estão em [docs/FEATURES.md](docs/FEATURES.md).
 
 Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.md](docs/EXPERIMENTO.md)
