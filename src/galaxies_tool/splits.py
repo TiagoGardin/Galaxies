@@ -30,6 +30,19 @@ def sortear_canais_novos(canais: pd.DataFrame, semente: int = SEMENTE) -> list[s
     return sorted(escolhidos)
 
 
+def atribuir_split(df: pd.DataFrame, splits: dict) -> np.ndarray:
+    """Rótulo de cada vídeo: treino, validacao, teste, teste_canais_novos, fora (canal novo antes
+    do corte de teste) ou demo. Usada aqui e na montagem das features, para não haver divergência."""
+    c1 = pd.Timestamp(splits["corte_treino_validacao"], tz="UTC")
+    c2 = pd.Timestamp(splits["corte_validacao_teste"], tz="UTC")
+    pub, eh_novo = df.published_at, df.channel_id.isin(splits["canais_novos"])
+    rotulo = np.select([pub < c1, pub < c2], ["treino", "validacao"], "teste")
+    rotulo = np.where(eh_novo, np.where(rotulo == "teste", "teste_canais_novos", "fora"), rotulo)
+    if "is_demo_channel" in df:
+        rotulo = np.where(df.is_demo_channel, "demo", rotulo)
+    return rotulo
+
+
 def definir_splits(base: pd.DataFrame) -> dict:
     eleg = base[base.elegivel_treino & ~base.is_demo_channel]
     canais = eleg.groupby("channel_id")[["sector", "channel_type"]].first().reset_index()
@@ -37,10 +50,9 @@ def definir_splits(base: pd.DataFrame) -> dict:
 
     vistos = eleg[~eleg.channel_id.isin(novos)]
     cortes = [vistos.published_at.quantile(q).normalize() for q in QUANTIS_CORTE]
-    pub, eh_novo = eleg.published_at, eleg.channel_id.isin(novos)
-    split = np.select([pub < cortes[0], pub < cortes[1]], ["treino", "validacao"], "teste")
-    split = np.where(eh_novo, np.where(split == "teste", "teste_canais_novos", "fora"), split)
-    eleg = eleg.assign(split=split)
+    eleg = eleg.assign(split=atribuir_split(eleg, {"corte_treino_validacao": str(cortes[0].date()),
+                                                   "corte_validacao_teste": str(cortes[1].date()),
+                                                   "canais_novos": sorted(novos)}))
 
     contagem = eleg.split.value_counts().to_dict()
     treino = eleg[eleg.split == "treino"]
