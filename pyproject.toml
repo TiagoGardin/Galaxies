@@ -4,11 +4,28 @@ version = "0.1.0"
 description = "Agente preditivo de performance de YouTube Shorts (moda e beleza) — case Galaxies"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "easyocr>=1.7.2",
+    "emoji>=2.16.0",
+    "faster-whisper>=1.2.1",
     "google-api-python-client",
+    "google-genai>=2.30.1",
+    "lightgbm>=4.7.0",
+    "mediapipe>=1.1.0",
+    "mlflow>=3.17.1",
+    "opencv-python-headless>=5.0.0.93",
     "pandas",
     "pandera>=0.34.1",
+    "pillow>=12.3.0",
     "pyarrow",
     "python-dotenv",
+    "requests>=2.34.2",
+    "scenedetect>=0.7.2",
+    "scikit-learn>=1.9.1",
+    "scipy>=1.18.1",
+    "sentence-transformers>=6.1.0",
+    "soundfile>=0.14.0",
+    "transformers>=5.19.0",
+    "yt-dlp>=2026.8.19",
 ]
 
 [build-system]

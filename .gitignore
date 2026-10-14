@@ -26,3 +26,8 @@ venv/
 .DS_Store
 .vscode/
 .idea/
+
+# Embeddings e artefatos derivados grandes (regeneráveis)
+data/features/*.npy
+mlflow.db
+data/features/*_log.txt
