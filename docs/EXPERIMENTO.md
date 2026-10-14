@@ -50,6 +50,13 @@ Canais novos por estrato: beleza/criador 30, beleza/marca 3, moda/criador 11, mo
 
 Hiperparâmetros e calibração do intervalo usam só a validação. O teste é avaliado **uma única vez**, no modelo final.
 
+### Amostra dos blocos C (vídeo) e D (VLM)
+A parte de vídeo do bloco C (download, frames e áudio) e o VLM do bloco D não cobrem a base inteira: o download precisa ir devagar para não ser bloqueado pelo YouTube, e a cota gratuita do Gemini é de cerca de 500 vídeos por dia. Os dois usam a mesma fila (`data/features/amostra_vlm.txt`, semente 42, `galaxies_tool/amostra_vlm.py`): 2.500 vídeos sorteados do treino, 1.000 da validação e depois todo o teste temporal, em ordem aleatória. Se o prazo terminar antes da fila, a parte coberta do teste continua sendo uma amostra aleatória dele. O uso de uma amostra foi aprovado pelo mentor em 14/10/2026.
+
+Consequências:
+- A ablação com os blocos C (vídeo) e D é feita só nos vídeos da amostra, comparando todos os modelos nos mesmos vídeos.
+- O teste em canais novos fica fora da fila, então os blocos C (vídeo) e D **não são avaliados em canais novos**. Nesse conjunto, só os blocos A, B e C (thumbnail) são avaliados.
+
 ### Métricas
 | Métrica | Definição | Por que |
 |---|---|---|
