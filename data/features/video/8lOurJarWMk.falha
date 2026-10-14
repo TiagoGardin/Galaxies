@@ -1,0 +1,1 @@
+CalledProcessError: Command '['yt-dlp', '-q', '--no-warnings', '-f', 'bv*+ba/b', '-S', 'res:360,ext:mp4:m4a', '--merge-output-format', 'mp4', '-o', '/var/folders/8r/p3mbzctx1wn_71lw3y56h41w0000gn/T/tmpqqpzbe6k/8lOurJarWMk.mp4', 'https://www.youtube.com/shorts/8lOurJarWMk']' returned non-zero exit status 1.
