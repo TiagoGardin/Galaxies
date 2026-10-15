@@ -5,6 +5,11 @@ Entrada: data/features/amostra_vlm.txt (video_id por linha, em ordem de priorida
 Saída: data/features/vlm/<video_id>.json (cache: cada vídeo é processado uma única vez). Outro modelo
 grava em data/features/vlm_<modelo>/, para que rubricas de modelos diferentes nunca se misturem.
 
+Para não gastar a cota do Gemini com vídeos que o YouTube não serve mais, cada execução tira da fila os
+vídeos removidos ou privados (pela YouTube Data API, ~1 unidade a cada 50 vídeos) e os marca com
+<video_id>.falha, assim como os vídeos que o Gemini recusa (400/403). Os .falha do pipeline de vídeo NÃO
+servem para isso: lá eles são vídeos "made for kids", que o yt-dlp não baixa mas o Gemini analisa.
+
 Regra 6 de docs/FEATURES.md: o modelo recebe SÓ o vídeo — sem título, canal ou métricas.
 `potencial_viral_0a10` é coletado mas nunca entra no modelo (só na comparação LLM zero-shot × modelo).
 """
@@ -94,6 +99,29 @@ def pasta_do_modelo(modelo: str) -> Path:
     return PASTA if modelo == MODELO else PASTA.with_name(f"vlm_{modelo}")
 
 
+def disponivel(status: dict | None) -> bool:
+    """O YouTube ainda serve o vídeo (não foi removido, rejeitado nem tornado privado)."""
+    return (status is not None and status.get("uploadStatus") == "processed"
+            and status.get("privacyStatus") in ("public", "unlisted"))
+
+
+def tirar_indisponiveis(fila: list[str], pasta: Path) -> list[str]:
+    """Marca com .falha e tira da fila os vídeos que o YouTube não serve mais."""
+    removidos = {}
+    try:
+        from galaxies_tool.youtube_api import YouTube
+        status = YouTube().status_videos(fila)
+        removidos = {v: f"YouTube Data API: {status.get(v) or 'removido'}" for v in fila
+                     if not disponivel(status.get(v))}
+    except Exception as e:  # noqa: BLE001 — sem a checagem o VLM ainda funciona, só gasta um pouco mais de cota
+        print(f"Checagem de disponibilidade falhou ({e}); seguindo sem ela", flush=True)
+    for v, motivo in removidos.items():
+        (pasta / f"{v}.falha").write_text(motivo)
+    if removidos:
+        print(f"{len(removidos)} vídeos indisponíveis tirados da fila", flush=True)
+    return [v for v in fila if v not in removidos]
+
+
 def analisar(cliente: genai.Client, video_id: str, modelo: str = MODELO) -> dict:
     url = f"https://www.youtube.com/shorts/{video_id}"
     resp = cliente.models.generate_content(
@@ -128,7 +156,8 @@ def processar_um(cliente: genai.Client, vid: str, modelo: str = MODELO) -> str:
                 time.sleep(espera)
                 espera = min(espera * 2, 600)
                 continue
-            if e.code == 400 or e.code == 403:  # vídeo indisponível/privado/bloqueado
+            if e.code == 400 or e.code == 403:  # vídeo indisponível/privado/bloqueado: não tentar de novo
+                (pasta_do_modelo(modelo) / f"{vid}.falha").write_text(f"Gemini {e.code}: {str(e)[:500]}")
                 return f"erro_{e.code}"
             invalidas += 1
         except (httpx.TimeoutException, httpx.NetworkError):  # rede caiu/travou: temporário
@@ -153,9 +182,11 @@ def main():
                            http_options=types.HttpOptions(timeout=TEMPO_LIMITE_MS))
     pasta = pasta_do_modelo(args.modelo)
     pasta.mkdir(parents=True, exist_ok=True)
-    fila = [v for v in AMOSTRA.read_text().split() if not (pasta / f"{v}.json").exists()]
+    fila = [v for v in AMOSTRA.read_text().split()
+            if not (pasta / f"{v}.json").exists() and not (pasta / f"{v}.falha").exists()]
     if args.limite:
         fila = fila[:args.limite]
+    fila = tirar_indisponiveis(fila, pasta)
     print(f"{args.modelo}: {len(fila)} vídeos na fila → {pasta}", flush=True)
     contagem = Counter()
     with ThreadPoolExecutor(args.paralelo) as ex:

@@ -81,9 +81,11 @@ Pergunta do bloco: **como o vídeo é fisicamente (pixels, som)?**
 | `movimento_medio` | Quanto a imagem mexe | Magnitude média do optical flow (Farneback) entre frames amostrados | Vídeo estático perde o espectador |
 | `emb_gancho_pca_1..8` | Primeiros 3 segundos | SigLIP 2 em 2–3 frames de 0–3 s → média → PCA | O gancho decide se a pessoa continua assistindo |
 | `tem_voz`, `voz_por_segundo` | Presença de voz (fala **ou canto**) | faster-whisper: palavras transcritas ÷ duração (ver regra 9) | Narração explicativa forma cluster próprio |
-| `energia_rms` | Energia do áudio | RMS médio do áudio (librosa) | Energia/música é a feature nº 1 no estudo de Shorts de referência |
+| `energia_rms` | Energia do áudio | RMS médio do áudio | Energia/música é a feature nº 1 no estudo de Shorts de referência |
 
-O vídeo é baixado em 360p com yt-dlp; o ID do vídeo é a chave de cache de cada etapa. Se não houver tempo para a base inteira, frames e áudio rodam numa amostra estratificada, documentada no experimento.
+O vídeo é baixado em 360p com yt-dlp e apagado logo depois de medido; o ID do vídeo é a chave de cache de cada etapa. Frames e áudio rodam na mesma amostra do VLM (ver "Amostra dos blocos C (vídeo) e D" em [EXPERIMENTO.md](EXPERIMENTO.md)).
+
+Vídeos "made for kids" ficam sem esta parte: são públicos, mas sem login o YouTube não entrega o arquivo (só o storyboard), com nenhum cliente do yt-dlp. Passar cookies de uma conta Google resolveria, mas arrisca bloquear a conta, e por isso não foi feito. Na amostra, são 136 de 8.361 vídeos (1,6%), concentrados em canais de marca: 11% dos vídeos de moda/marca e 5% de beleza/marca, quase todos de FILA Brasil, Dafiti, Lupo e Simple Organic. O LightGBM recebe essas colunas como ausentes. O VLM analisa esses vídeos normalmente, então o bloco D cobre o que a parte de vídeo do bloco C perde.
 
 ## Bloco D — VLM
 

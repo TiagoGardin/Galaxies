@@ -26,7 +26,9 @@ PASTA_GANCHO = Path("data/media/gancho")
 INSTANTES_GANCHO = (0.5, 1.5, 2.5)
 FPS_MOVIMENTO = 2
 PAUSA_ENTRE_DOWNLOADS = 8.0  # com 3 s o YouTube pediu verificação de robô após ~1.100 downloads
-# só estes erros do yt-dlp viram .falha (o vídeo é pulado para sempre); qualquer outro é retomado depois
+# só estes erros do yt-dlp viram .falha (o vídeo é pulado para sempre); qualquer outro é retomado depois.
+# Na prática, "not available" são vídeos públicos marcados como "made for kids": sem login, o YouTube
+# não entrega o vídeo (só o storyboard), com nenhum cliente do yt-dlp (testado em 15/10/2026).
 ERROS_PERMANENTES = ("this video is not available", "video unavailable", "private video", "has been removed")
 ERROS_BLOQUEIO = ("not a bot",)  # o YouTube bloqueou este IP: parar tudo, não é culpa do vídeo
 _whisper = None
@@ -111,7 +113,7 @@ def detalhe_do_erro(e: Exception) -> str:
 
 
 def tipo_de_erro(detalhe: str) -> str:
-    """Classifica o erro: "permanente" (vídeo removido ou privado), "bloqueio" (verificação de robô) ou
+    """Classifica o erro: "permanente" (made for kids, removido ou privado), "bloqueio" (verificação de robô) ou
     "temporario" (403, rede, qualquer outro)."""
     texto = detalhe.lower()
     if any(m in texto for m in ERROS_BLOQUEIO):

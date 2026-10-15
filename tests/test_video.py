@@ -15,3 +15,12 @@ def test_403_rede_e_desconhecido_sao_temporarios():
     assert tipo_de_erro("ERROR: [download] Got error: ... [Errno 61] Connection refused.") == "temporario"
     assert tipo_de_erro("ERROR: [youtube] 96AZuQ8C0mA: Please sign in.") == "temporario"
     assert tipo_de_erro("") == "temporario"
+
+
+def test_disponibilidade_para_o_vlm():
+    from galaxies_tool.vlm import disponivel
+    assert disponivel({"uploadStatus": "processed", "privacyStatus": "public"})
+    assert disponivel({"uploadStatus": "processed", "privacyStatus": "unlisted"})
+    assert not disponivel(None)                                                    # removido: a API não devolve
+    assert not disponivel({"uploadStatus": "processed", "privacyStatus": "private"})
+    assert not disponivel({"uploadStatus": "rejected", "privacyStatus": "public"})

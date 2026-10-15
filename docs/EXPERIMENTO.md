@@ -56,6 +56,8 @@ A parte de vídeo do bloco C (download, frames e áudio) e o VLM do bloco D não
 Consequências:
 - A ablação com os blocos C (vídeo) e D é feita só nos vídeos da amostra, comparando todos os modelos nos mesmos vídeos.
 - O teste em canais novos fica fora da fila, então os blocos C (vídeo) e D **não são avaliados em canais novos**. Nesse conjunto, só os blocos A, B e C (thumbnail) são avaliados.
+- Antes de cada rodada, o VLM consulta a YouTube Data API (~1 unidade a cada 50 vídeos) e tira da fila os vídeos removidos ou privados, para não gastar a cota do Gemini. Em 15/10/2026, nenhum dos 8.361 estava indisponível.
+- A parte de vídeo do bloco C não cobre os vídeos "made for kids" (1,6% da amostra, 11% em moda/marca; ver [FEATURES.md](FEATURES.md)). Por isso o ganho da parte de vídeo em canais de marca é medido com menos vídeos.
 
 ### Métricas
 | Métrica | Definição | Por que |

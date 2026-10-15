@@ -82,6 +82,15 @@ class YouTube:
             itens += r.get("items", [])
         return itens
 
+    def status_videos(self, ids: list[str]) -> dict[str, dict]:
+        """`status` de cada vídeo ainda servido pelo YouTube; vídeos removidos não aparecem na resposta."""
+        status = {}
+        for i in range(0, len(ids), 50):
+            r = self._executar("videos", self.api.videos().list(
+                part="status", id=",".join(ids[i:i + 50]), maxResults=50))
+            status.update({it["id"]: it["status"] for it in r.get("items", [])})
+        return status
+
     def buscar_shorts(self, q: str, publicado_depois: str, paginas: int = 1) -> list[dict]:
         """search.list por vídeos curtos no Brasil/pt. Caro (100 un./página): usar só para descoberta."""
         itens, token = [], None
