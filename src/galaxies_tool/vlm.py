@@ -1,7 +1,7 @@
 """Bloco D: rubrica respondida por VLM (Gemini Flash-Lite) a partir da URL pública do Short.
 
 Uso: uv run python -m galaxies_tool.vlm [--limite N] [--modelo NOME]
-Entrada: data/features/amostra_vlm.txt (video_id por linha, em ordem de prioridade)
+Entrada: data/features/fila_vlm.txt (video_id por linha, em ordem de prioridade; ver amostra_vlm.py)
 Saída: data/features/vlm/<video_id>.json (cache: cada vídeo é processado uma única vez). Outro modelo
 grava em data/features/vlm_<modelo>/, para que rubricas de modelos diferentes nunca se misturem.
 
@@ -32,7 +32,7 @@ from pydantic import BaseModel, Field
 
 MODELO = "gemini-3.1-flash-lite"  # o 3.5 vivia sobrecarregado (503); ver docs/FEATURES.md
 TEMPO_LIMITE_MS = 180_000
-AMOSTRA = Path("data/features/amostra_vlm.txt")
+AMOSTRA = Path("data/features/fila_vlm.txt")
 PASTA = Path("data/features/vlm")
 
 PROMPT = """Você é um analista de criativos de moda e beleza. Assista ao vídeo e preencha a rubrica.
