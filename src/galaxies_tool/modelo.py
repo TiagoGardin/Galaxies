@@ -76,15 +76,21 @@ def adicionar_pca(treino: pd.DataFrame, outros: list[pd.DataFrame], prefixo: str
     """PCA ajustado só nos vídeos do treino que têm embedding; quem não tem fica NaN (o LightGBM lida)."""
     cols_emb = [c for c in treino.columns if c.startswith(prefixo)]
     pca = PCA(n_components=N_PCA, random_state=SEMENTE).fit(treino[cols_emb].dropna())
-    nomes = [f"{nome}_pca_{i + 1}" for i in range(N_PCA)]
+    nomes = nomes_pca(nome)
+    return nomes, [aplicar_pca(pca, d, cols_emb, nomes) for d in [treino, *outros]]
 
-    def transformar(d):
-        z = np.full((len(d), N_PCA), np.nan)
-        tem = d[cols_emb].notna().all(axis=1).to_numpy()
-        if tem.any():
-            z[tem] = pca.transform(d.loc[tem, cols_emb])
-        return d.assign(**dict(zip(nomes, z.T, strict=True)))
-    return nomes, [transformar(d) for d in [treino, *outros]]
+
+def nomes_pca(nome: str) -> list[str]:
+    return [f"{nome}_pca_{i + 1}" for i in range(N_PCA)]
+
+
+def aplicar_pca(pca: PCA, d: pd.DataFrame, cols_emb: list[str], nomes: list[str]) -> pd.DataFrame:
+    """Linhas sem embedding (alguma coluna NaN) ficam com os componentes NaN."""
+    z = np.full((len(d), len(nomes)), np.nan)
+    tem = d[cols_emb].notna().all(axis=1).to_numpy()
+    if tem.any():
+        z[tem] = pca.transform(d.loc[tem, cols_emb])
+    return d.assign(**dict(zip(nomes, z.T, strict=True)))
 
 
 def matriz(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
@@ -95,16 +101,17 @@ def matriz(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:
     return x
 
 
-def treinar_lgbm(treino, cols):
+def treinar_lgbm(treino, cols, params: dict | None = None, metrica: str = "l1"):
     """Early stopping nos últimos 10% do treino (em ordem de tempo), para a validação ficar limpa;
     depois retreina no treino inteiro com o número de árvores encontrado."""
+    params = params or PARAMS_LGBM
     ordenado = treino.sort_values("published_at")
     corte = int(len(ordenado) * (1 - FRACAO_PARADA))
     ajuste, parada = ordenado.iloc[:corte], ordenado.iloc[corte:]
-    busca = lgb.LGBMRegressor(**PARAMS_LGBM)
+    busca = lgb.LGBMRegressor(**params)
     busca.fit(matriz(ajuste, cols), ajuste.alvo, eval_X=(matriz(parada, cols),), eval_y=(parada.alvo,),
-              eval_metric="l1", callbacks=[lgb.early_stopping(200, verbose=False)])
-    final = lgb.LGBMRegressor(**{**PARAMS_LGBM, "n_estimators": busca.best_iteration_})
+              eval_metric=metrica, callbacks=[lgb.early_stopping(200, verbose=False)])
+    final = lgb.LGBMRegressor(**{**params, "n_estimators": busca.best_iteration_})
     final.fit(matriz(treino, cols), treino.alvo)
     return final, busca.best_iteration_
 

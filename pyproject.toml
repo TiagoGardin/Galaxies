@@ -4,12 +4,16 @@ version = "0.1.0"
 description = "Agente preditivo de performance de YouTube Shorts (moda e beleza) — case Galaxies"
 requires-python = ">=3.12,<3.13"
 dependencies = [
+    "catboost>=1.2.10",
     "easyocr>=1.7.2",
     "emoji>=2.16.0",
     "faster-whisper>=1.2.1",
     "google-api-python-client",
     "google-genai>=2.30.1",
+    "joblib>=1.6.0",
+    "langgraph>=1.2.15",
     "lightgbm>=4.7.0",
+    "mcp[cli]>=2.3.0",
     "mediapipe>=1.1.0",
     "mlflow>=3.17.1",
     "opencv-python-headless>=5.0.0.93",
@@ -23,8 +27,10 @@ dependencies = [
     "scikit-learn>=1.9.1",
     "scipy>=1.18.1",
     "sentence-transformers>=6.1.0",
+    "shap>=0.53.0",
     "soundfile>=0.14.0",
     "transformers>=5.19.0",
+    "xgboost>=3.4.1",
     "yt-dlp>=2026.8.19",
 ]
 
@@ -42,3 +48,6 @@ line-length = 110
 dev = [
     "pytest>=9.1.1",
 ]
+
+[tool.pytest.ini_options]
+markers = ["slow: carrega os modelos de extração (~30 s)"]
