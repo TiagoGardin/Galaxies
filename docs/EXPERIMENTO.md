@@ -53,6 +53,8 @@ Hiperparâmetros e calibração do intervalo usam só a validação. O teste é 
 ### Amostra dos blocos C (vídeo) e D (VLM)
 A parte de vídeo do bloco C (download, frames e áudio) e o VLM do bloco D não cobrem a base inteira: o download precisa ir devagar para não ser bloqueado pelo YouTube, e a cota gratuita do Gemini é de cerca de 500 vídeos por dia. Os dois usam a mesma fila (`data/features/amostra_vlm.txt`, semente 42, `galaxies_tool/amostra_vlm.py`): 2.500 vídeos sorteados do treino, 1.000 da validação e depois todo o teste temporal, em ordem aleatória. Se o prazo terminar antes da fila, a parte coberta do teste continua sendo uma amostra aleatória dele. O uso de uma amostra foi aprovado pelo mentor em 14/10/2026.
 
+**Ajuste de 15/10/2026 (antes de qualquer contato com o teste):** o prazo de entrega foi antecipado para 21/10 e o VLM fica limitado à cota gratuita, usada até a manhã de 19/10 (~1.950 vídeos a mais). Na ordem acima, isso terminaria sem nenhum vídeo de teste com bloco D, e o ganho do VLM não poderia ser medido no teste. A fila do VLM (`data/features/fila_vlm.txt`) passa a ser a mesma amostra reordenada: os 1.419 primeiros do treino (os já processados), 400 da validação, todo o teste e só então o restante, mantendo a ordem aleatória dentro de cada split. Resultado esperado: ~1.420 vídeos de treino, ~400 de validação e ~1.550 de teste com bloco D. A parte de vídeo do bloco C continua na ordem original, que já cobre treino, validação e parte do teste.
+
 Consequências:
 - A ablação com os blocos C (vídeo) e D é feita só nos vídeos da amostra, comparando todos os modelos nos mesmos vídeos.
 - O teste em canais novos fica fora da fila, então os blocos C (vídeo) e D **não são avaliados em canais novos**. Nesse conjunto, só os blocos A, B e C (thumbnail) são avaliados.
@@ -114,6 +116,17 @@ Verificação do ganho da thumbnail. Risco: o embedding SigLIP funcionar como "i
 O ganho diminui, mas continua lá: a thumbnail carrega sinal sobre o vídeo, não só sobre o canal. Na validação, o ganho de MAE-log é de 0,020, com IC 95% por bootstrap pareado reamostrando canais (2.000 réplicas) de [0,009; 0,032]. (Verificação feita antes do OCR, com cor, rosto e SigLIP.)
 
 O OCR (texto na thumbnail em 60% dos vídeos) não muda o resultado além do ruído: o SigLIP provavelmente já capta a presença de texto. Ele segue na lista e a decisão final sai do SHAP por bloco.
+
+**Escolha da família de modelo (15/10/2026).** Mesmas 76 features (A + B + C da thumbnail), mesmo early stopping e perda L1 nos boostings; hiperparâmetros próximos do padrão de cada biblioteca, sem busca. Reprodutível com `uv run python -m galaxies_tool.comparar_modelos`.
+
+| Modelo | MAE-log | MAPE | Spearman intra-canal | Par-a-par | Par-a-par mesma época | F1 faixas |
+|---|---|---|---|---|---|---|
+| LightGBM | **0,819** | 1,354 | 0,327 | 61,6% | **57,8%** | 0,289 |
+| CatBoost | 0,820 | **1,196** | **0,332** | **61,7%** | 57,7% | 0,274 |
+| XGBoost | 0,829 | 1,404 | 0,307 | 61,1% | 56,5% | **0,309** |
+| Ridge (one-hot + imputação) | 0,857 | 1,674 | 0,218 | 58,7% | 55,4% | 0,224 |
+
+LightGBM e CatBoost empatam dentro do ruído (exceto no MAPE, melhor no CatBoost); o XGBoost fica um pouco atrás e o modelo linear perde em todas as métricas, o que indica que as interações não lineares importam. O LightGBM é mantido por empatar com o melhor e por ter quantis nativos (intervalo) e TreeSHAP nativo (explicação do agente). Uma média LightGBM + CatBoost será testada junto com a busca de hiperparâmetros e só entra se o ganho superar o ruído.
 
 ### Baseline vs. modelo
 
