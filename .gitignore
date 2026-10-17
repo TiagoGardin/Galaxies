@@ -31,3 +31,6 @@ venv/
 data/features/*.npy
 mlflow.db
 data/features/*_log.txt
+
+# Artefatos de treino do CatBoost
+catboost_info/
