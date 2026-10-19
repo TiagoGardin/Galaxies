@@ -69,3 +69,22 @@ def test_par_a_par_restrito_a_mesma_epoca():
     p = [0.0, -1.0, 5.0]   # erra o único par próximo (01/01 x 05/01), acerta os pares distantes
     assert acuracia_par_a_par(y, p, canal)[0] == pytest.approx(2 / 3)
     assert acuracia_par_a_par(y, p, canal, datas, 7) == (pytest.approx(0.0), 1)
+
+
+def test_bootstrap_reproduz_a_diferenca_pontual_e_cobre_zero_para_modelos_iguais():
+    import pandas as pd
+
+    from galaxies_tool.metricas import bootstrap_diferenca
+
+    rng = np.random.default_rng(1)
+    n = 400
+    canal = rng.integers(0, 30, n)
+    datas = pd.Timestamp("2026-01-01", tz="UTC") + pd.to_timedelta(rng.integers(0, 60, n), "D")
+    y = rng.normal(size=n)
+    p1, p0 = y + rng.normal(scale=0.7, size=n), rng.normal(scale=0.01, size=n)
+    b = bootstrap_diferenca(y, p1, p0, canal, datas, replicas=300)
+    r1, r0 = avaliar(y, p1, canal, np.zeros(n), datas=datas), avaliar(y, p0, canal, np.zeros(n), datas=datas)
+    for k in ("mae_log", "acuracia_par_a_par_7d", "spearman_intra_canal"):
+        assert b[k]["diferenca"] == pytest.approx(r1[k] - r0[k])
+    igual = bootstrap_diferenca(y, p1, p1, canal, datas, replicas=100)
+    assert igual["mae_log"]["ic95"] == (0.0, 0.0)

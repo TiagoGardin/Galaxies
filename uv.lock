@@ -286,6 +286,18 @@ wheels = [
 ]
 
 [[package]]
+name = "colorlog"
+version = "6.12.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/8c/55/ba79756cb90c8d69d599d57785398ac87bba7b19c80e87f4e8a562197c93/colorlog-6.12.0.tar.gz", hash = "sha256:2a7924c1dadf18b22a0eb8b06d1c7b01d5341707ec1641eb6fcc4fde0c3e8e5f", size = 18151, upload-time = "2026-07-23T13:40:40.71Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d4/19/0b6647bf5e331521e55d2b63bfbdc210bd9cd605189273f03614a05f702d/colorlog-6.12.0-py3-none-any.whl", hash = "sha256:30d392604e9110045a2c2aeefc27d7a017abbab63f3a8aee594eac0801df784e", size = 12239, upload-time = "2026-07-23T13:40:39.562Z" },
+]
+
+[[package]]
 name = "contourpy"
 version = "1.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -669,6 +681,7 @@ dependencies = [
     { name = "mediapipe" },
     { name = "mlflow" },
     { name = "opencv-python-headless" },
+    { name = "optuna" },
     { name = "pandas" },
     { name = "pandera" },
     { name = "pillow" },
@@ -679,7 +692,6 @@ dependencies = [
     { name = "scikit-learn" },
     { name = "scipy" },
     { name = "sentence-transformers" },
-    { name = "shap" },
     { name = "soundfile" },
     { name = "transformers" },
     { name = "xgboost" },
@@ -706,6 +718,7 @@ requires-dist = [
     { name = "mediapipe", specifier = ">=1.1.0" },
     { name = "mlflow", specifier = ">=3.17.1" },
     { name = "opencv-python-headless", specifier = ">=5.0.0.93" },
+    { name = "optuna", specifier = ">=5.0.0" },
     { name = "pandas" },
     { name = "pandera", specifier = ">=0.34.1" },
     { name = "pillow", specifier = ">=12.3.0" },
@@ -716,7 +729,6 @@ requires-dist = [
     { name = "scikit-learn", specifier = ">=1.9.1" },
     { name = "scipy", specifier = ">=1.18.1" },
     { name = "sentence-transformers", specifier = ">=6.1.0" },
-    { name = "shap", specifier = ">=0.53.0" },
     { name = "soundfile", specifier = ">=0.14.0" },
     { name = "transformers", specifier = ">=5.19.0" },
     { name = "xgboost", specifier = ">=3.4.1" },
@@ -1949,6 +1961,24 @@ wheels = [
 ]
 
 [[package]]
+name = "optuna"
+version = "5.0.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "alembic" },
+    { name = "colorlog" },
+    { name = "numpy" },
+    { name = "packaging" },
+    { name = "pyyaml" },
+    { name = "sqlalchemy" },
+    { name = "tqdm" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/27/6d/7bd33b5ed3a83f1c1517fb20c54c7dbf59e6c76430d9b26d3205074ff6b0/optuna-5.0.0.tar.gz", hash = "sha256:358bb878b7b1e20e90dc944ac4261796dd3d5c2b7860aa960a08fc10e0b5beff", size = 508726, upload-time = "2026-09-07T05:16:21.136Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/90/e5/7c5e8cdda8c9f0cd8aca0a376dee9cff6b8c30692cf614960d9e80f59689/optuna-5.0.0-py3-none-any.whl", hash = "sha256:5fff892ae6baf4948c810c5b8635ec67e08efb0709b41cb73b14e30391d44720", size = 442352, upload-time = "2026-09-07T05:16:19.943Z" },
+]
+
+[[package]]
 name = "orjson"
 version = "3.13.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2625,32 +2655,6 @@ wheels = [
 ]
 
 [[package]]
-name = "shap"
-version = "0.53.0"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "cloudpickle" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pandas" },
-    { name = "scikit-learn" },
-    { name = "scipy" },
-    { name = "slicer" },
-    { name = "tqdm" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/34/56/bec744a413e771045b421622f16b64bb00b52ee45f6ade745af8ee24e75d/shap-0.53.0.tar.gz", hash = "sha256:adebe5538f0815a0923e074174ad87a7039a61638146f1375113643a34197840", size = 5677545, upload-time = "2026-10-09T07:33:32.999Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/af/a9/1e068f1328d916a4db29b089a7d34fe48553159f487f83e6c1789e7c680a/shap-0.53.0-cp312-abi3-macosx_10_13_x86_64.whl", hash = "sha256:c3caea0200e7505ffd2d3bdbf2db56fbe9129da6edda202305751f1c3329e009", size = 554496, upload-time = "2026-10-09T07:32:50.597Z" },
-    { url = "https://files.pythonhosted.org/packages/16/64/48dc1838e84ba4e05353a8062e64cd8d754dfaeb0318a367842c75571bdb/shap-0.53.0-cp312-abi3-macosx_11_0_arm64.whl", hash = "sha256:95c18c3f6b123fbc764cf35ecf5704b9239bec0dae0fe6e1ea01e5e58c265159", size = 547816, upload-time = "2026-10-09T07:32:52.425Z" },
-    { url = "https://files.pythonhosted.org/packages/be/94/fa300ebd7f1766852e8170b1bbe31ae5b43687fa2a4d6429c6fa0515142e/shap-0.53.0-cp312-abi3-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:cdcf5c063f12c8778831982fa45ee30818141a4bfe023b699fdf1620a0fce2b6", size = 551444, upload-time = "2026-10-09T07:32:53.971Z" },
-    { url = "https://files.pythonhosted.org/packages/77/70/632d3136de2992e23a9f2c3d856ce9f77b4082ea5627db45c9eb402b2adf/shap-0.53.0-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:491404b2fcd8661a3ebc6d260bea5c6ace5e8b8ff0962196c2d543d5e31c9408", size = 560399, upload-time = "2026-10-09T07:32:55.838Z" },
-    { url = "https://files.pythonhosted.org/packages/08/3b/4088bdc958267122e8a0e9ea1793903121fd2cfb2d825153c5426ef8c6f4/shap-0.53.0-cp312-abi3-musllinux_1_2_aarch64.whl", hash = "sha256:4c59dc3eed156cdf9ebb06954909f15145b57f2a07ab9e39373b43d7d9f99c4d", size = 1974819, upload-time = "2026-10-09T07:32:57.709Z" },
-    { url = "https://files.pythonhosted.org/packages/a8/98/2e2f82532756eb95044e60c254cbfed508f83f5939730ae2be87c5eae126/shap-0.53.0-cp312-abi3-musllinux_1_2_x86_64.whl", hash = "sha256:73264a5ee7c8da85dde8cbf361cf1d1a6f2e622670a1c0a4378dd03ad3b68a47", size = 2051046, upload-time = "2026-10-09T07:32:59.533Z" },
-    { url = "https://files.pythonhosted.org/packages/3c/fc/d4c68e9c3c838a31ed80d55c3ef219f54fedc8af89ff36f2602371cca77c/shap-0.53.0-cp312-abi3-win_amd64.whl", hash = "sha256:983d86a62e09769b6cbba3d280977b8c542271eb8e92a9c553d69f0845df8f88", size = 755395, upload-time = "2026-10-09T07:33:01.025Z" },
-    { url = "https://files.pythonhosted.org/packages/be/fe/e1abf48cdfd072bdeb200e5518068989a4c73e20ad428db8e344d0dfa2ff/shap-0.53.0-cp312-abi3-win_arm64.whl", hash = "sha256:de517a46fa5ac8b72cc7c65eed4bd2fc891e319494aa884077420acbbe1beb8c", size = 920538, upload-time = "2026-10-09T07:33:02.668Z" },
-]
-
-[[package]]
 name = "shapely"
 version = "2.2.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2702,15 +2706,6 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/52/4b/7fef0af1efcb06c0986762645fb414ad850314a891434a2bbaea12a962ea/skops-0.16.0.tar.gz", hash = "sha256:58ddb63fed9f2a8545baa1a91c45c26d44cf65c83e2fd217541c41e411cf1d74", size = 673544, upload-time = "2026-09-24T06:29:46.96Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/44/a3/08ae9ea7f7c16e20a447d9289dce40f06f52607ed9a39f554a8426d96ba3/skops-0.16.0-py3-none-any.whl", hash = "sha256:5b2eb1bc49392c74a38db04481e2d110f97d9a72d6ae38fbd698aa7a865a9070", size = 148650, upload-time = "2026-09-24T06:29:45.491Z" },
-]
-
-[[package]]
-name = "slicer"
-version = "0.0.8"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/d3/f9/b4bce2825b39b57760b361e6131a3dacee3d8951c58cb97ad120abb90317/slicer-0.0.8.tar.gz", hash = "sha256:2e7553af73f0c0c2d355f4afcc3ecf97c6f2156fcf4593955c3f56cf6c4d6eb7", size = 14894, upload-time = "2024-03-09T23:35:26.826Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/63/81/9ef641ff4e12cbcca30e54e72fb0951a2ba195d0cda0ba4100e532d929db/slicer-0.0.8-py3-none-any.whl", hash = "sha256:6c206258543aecd010d497dc2eca9d2805860a0b3758673903456b7df7934dc3", size = 15251, upload-time = "2024-03-09T07:03:07.708Z" },
 ]
 
 [[package]]

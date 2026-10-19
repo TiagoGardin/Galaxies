@@ -1,0 +1,16 @@
+gerado_por: uv run python -m galaxies_tool.ajustar
+gerado_em: '2026-10-19T00:30:08+00:00'
+objetivo: MAE-log na validação (A+B+C+D)
+tentativas: 40
+mae_log_validacao:
+  padrao: 0.81663
+  escolhido: 0.81474
+arvores_no_early_stopping: 3473
+params:
+  learning_rate: 0.02447
+  num_leaves: 74
+  min_child_samples: 66
+  feature_fraction: 0.940624
+  bagging_fraction: 0.884449
+  lambda_l1: 0.721686
+  lambda_l2: 15.444336

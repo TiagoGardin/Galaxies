@@ -3,10 +3,12 @@
 Uso: uv run python -m galaxies_tool.comparar_modelos
 Registra cada modelo no MLflow (experimento galaxies_validacao, tag comparacao=modelos).
 
-Mesmo conjunto de features do artefato (A + B + C da thumbnail, PCAs ajustados só no treino) e mesmo
-early stopping (últimos 10% do treino, em ordem de tempo). Os boostings usam perda L1, como o LightGBM;
-a Ridge (L2) é o contraponto linear. Hiperparâmetros próximos dos padrões de cada biblioteca, sem busca:
-a pergunta é se outra família é claramente melhor, não qual ajuste extrai mais de cada uma.
+Mesmo conjunto de features do artefato (A+B+C+D, PCAs ajustados só no treino) e mesmo early stopping
+(últimos 10% do treino, em ordem de tempo). Os boostings usam perda L1, como o LightGBM; a Ridge (L2) é o
+contraponto linear. O LightGBM usa os hiperparâmetros de configs/lgbm.yaml; os outros, valores próximos dos
+padrões de cada biblioteca, sem busca: a pergunta é se outra família é claramente melhor, não qual ajuste
+extrai mais de cada uma. Também testa a média LightGBM + CatBoost contra o LightGBM sozinho, com IC 95%
+por bootstrap pareado de canais (a média só entra se o ganho superar o ruído).
 """
 
 import time
@@ -14,7 +16,6 @@ import time
 import mlflow
 import numpy as np
 import pandas as pd
-from catboost import CatBoostRegressor
 from sklearn.compose import ColumnTransformer
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import RidgeCV
@@ -23,8 +24,8 @@ from sklearn.preprocessing import OneHotEncoder, StandardScaler
 from xgboost import XGBRegressor
 
 from galaxies_tool import modelo
-from galaxies_tool.artefato import CATEGORICAS, colunas_do_modelo
-from galaxies_tool.metricas import avaliar
+from galaxies_tool.metricas import avaliar, bootstrap_diferenca
+from galaxies_tool.modelo import CATEGORICAS
 
 TAXA = 0.03
 MAX_ARVORES = 5000
@@ -43,22 +44,8 @@ def lightgbm(treino, valid, cols):
 
 
 def catboost(treino, valid, cols):
-    cats = [c for c in cols if c in CATEGORICAS]
-
-    def x(d):
-        m = modelo.matriz(d, cols)
-        for c in cats:
-            m[c] = m[c].astype(str)
-        return m
-
-    params = {"loss_function": "MAE", "learning_rate": TAXA, "depth": 6, "l2_leaf_reg": 3,
-              "random_seed": modelo.SEMENTE, "verbose": 0, "thread_count": -1}
-    ajuste, parada = dividir_parada(treino)
-    busca = CatBoostRegressor(iterations=MAX_ARVORES, od_type="Iter", od_wait=PACIENCIA, **params)
-    busca.fit(x(ajuste), ajuste.alvo, cat_features=cats, eval_set=(x(parada), parada.alvo))
-    n = busca.get_best_iteration() + 1
-    final = CatBoostRegressor(iterations=n, **params).fit(x(treino), treino.alvo, cat_features=cats)
-    return final.predict(x(valid)), n
+    m, n = modelo.treinar_catboost(treino, cols)
+    return m.predict(modelo.matriz_catboost(valid, cols)), n
 
 
 def xgboost(treino, valid, cols):
@@ -88,7 +75,7 @@ def ridge(treino, valid, cols):
     def x(d):
         r = modelo.matriz(d, cols)
         for c in cats:
-            r[c] = r[c].astype(str)
+            r[c] = modelo.como_texto(r[c])
         return r
 
     m.fit(x(treino), treino.alvo)
@@ -98,16 +85,18 @@ def ridge(treino, valid, cols):
 def main():
     df = modelo.carregar()
     treino, valid = df[df.split == "treino"].copy(), df[df.split == "validacao"].copy()
-    for prefixo, nome in (("embtxt_", "emb_texto"), ("embimg_", "emb_thumb")):
-        _, (treino, valid) = modelo.adicionar_pca(treino, [valid], prefixo, nome)
-    cols = colunas_do_modelo(treino)
+    pcas = modelo.ajustar_pcas(treino)
+    treino, valid = modelo.aplicar_pcas(treino, pcas), modelo.aplicar_pcas(valid, pcas)
+    cols = modelo.colunas_completas(df)
 
     mlflow.set_tracking_uri("sqlite:///mlflow.db")
     mlflow.set_experiment("galaxies_validacao")
-    linhas = {}
-    for nome, fn in (("lightgbm", lightgbm), ("catboost", catboost), ("xgboost", xgboost), ("ridge", ridge)):
+    linhas, prev = {}, {}
+    for nome, fn in (("lightgbm", lightgbm), ("catboost", catboost), ("xgboost", xgboost), ("ridge", ridge),
+                     ("media_lightgbm_catboost", None)):
         t = time.time()
-        p, n = fn(treino, valid, cols)
+        p, n = fn(treino, valid, cols) if fn else ((prev["lightgbm"] + prev["catboost"]) / 2, None)
+        prev[nome] = p
         r = avaliar(valid.alvo, p, valid.channel_id, valid.log_mediana_likes_ult20, datas=valid.published_at)
         r["segundos"], r["n_arvores"] = round(time.time() - t), n
         linhas[nome] = r
@@ -118,9 +107,16 @@ def main():
         print(f"{nome}: {r['mae_log']:.4f} MAE-log ({r['segundos']} s)", flush=True)
 
     tabela = pd.DataFrame(linhas).T
+    modelo.RESULTADOS.mkdir(exist_ok=True)
+    tabela.to_csv(modelo.RESULTADOS / "validacao_familias.csv")
     print(f"\nValidação: {len(valid)} vídeos, {len(cols)} features\n")
     print(tabela[["mae_log", "mape", "spearman", "spearman_intra_canal", "acuracia_par_a_par",
                   "acuracia_par_a_par_7d", "f1_faixas", "n_arvores", "segundos"]].round(4).to_string())
+    for outro in ("catboost", "media_lightgbm_catboost"):
+        bd = bootstrap_diferenca(valid.alvo, prev[outro], prev["lightgbm"], valid.channel_id, valid.published_at)
+        print(f"\n{outro} − lightgbm (IC 95%, bootstrap de canais):")
+        for k, v in bd.items():
+            print(f"  {k}: {v['diferenca']:+.4f} [{v['ic95'][0]:+.4f}; {v['ic95'][1]:+.4f}]")
 
 
 if __name__ == "__main__":

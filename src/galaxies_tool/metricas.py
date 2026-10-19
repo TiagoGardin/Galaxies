@@ -54,15 +54,9 @@ def acuracia_par_a_par(y, p, canal, datas=None, max_dias: float | None = None) -
     if max_dias is not None:
         df["t"] = pd.to_datetime(pd.Series(datas).to_numpy()).to_numpy("datetime64[s]").astype(np.int64) / 86400
     for _, g in df.groupby("c"):
-        yy, pp = g.y.to_numpy(), g.p.to_numpy()
-        i, j = np.triu_indices(len(yy), k=1)
-        dy, dp = np.sign(yy[i] - yy[j]), np.sign(pp[i] - pp[j])
-        valido = dy != 0
-        if max_dias is not None:
-            tt = g.t.to_numpy()
-            valido &= np.abs(tt[i] - tt[j]) <= max_dias
-        acertos += np.sum((dy == dp) & valido & (dp != 0)) + 0.5 * np.sum(valido & (dp == 0))
-        pares += int(valido.sum())
+        tt = g.t.to_numpy() if max_dias is not None else None
+        ac, pa = _par_a_par_do_canal(g.y.to_numpy(), g.p.to_numpy(), tt, max_dias)
+        acertos, pares = acertos + ac, pares + pa
     return (acertos / pares if pares else float("nan")), pares
 
 
@@ -76,6 +70,58 @@ def f1_faixas(y, p) -> float:
 
 
 JANELA_MESMA_EPOCA_DIAS = 7
+REPLICAS_BOOTSTRAP = 2000
+
+
+def _par_a_par_do_canal(yy, pp, tt=None, max_dias=None) -> tuple[float, int]:
+    i, j = np.triu_indices(len(yy), k=1)
+    dy, dp = np.sign(yy[i] - yy[j]), np.sign(pp[i] - pp[j])
+    valido = dy != 0
+    if max_dias is not None:
+        valido &= np.abs(tt[i] - tt[j]) <= max_dias
+    return float(np.sum((dy == dp) & valido & (dp != 0)) + 0.5 * np.sum(valido & (dp == 0))), int(valido.sum())
+
+
+def por_canal(y, p, canal, datas) -> pd.DataFrame:
+    """Somas por canal que compõem MAE-log, par-a-par (todos e mesma época) e Spearman intra-canal."""
+    df = pd.DataFrame({"y": np.asarray(y), "p": np.asarray(p), "c": np.asarray(canal),
+                       "t": pd.to_datetime(pd.Series(datas).to_numpy()).to_numpy("datetime64[s]")
+                       .astype(np.int64) / 86400})
+    linhas = {}
+    for c, g in df.groupby("c"):
+        yy, pp, tt = g.y.to_numpy(), g.p.to_numpy(), g.t.to_numpy()
+        ac, pa = _par_a_par_do_canal(yy, pp)
+        ac7, pa7 = _par_a_par_do_canal(yy, pp, tt, JANELA_MESMA_EPOCA_DIAS)
+        sp = spearman(yy, pp) if len(g) >= MIN_VIDEOS_CANAL else np.nan
+        linhas[c] = {"n": len(g), "erro_abs": np.abs(yy - pp).sum(), "acertos": ac, "pares": pa,
+                     "acertos_7d": ac7, "pares_7d": pa7, "spearman": sp}
+    return pd.DataFrame.from_dict(linhas, orient="index")
+
+
+def _agregar(t: pd.DataFrame, w: np.ndarray) -> dict:
+    """Métricas com cada canal pesado por w (nº de vezes que foi sorteado). Arrays 2D: uma linha por réplica."""
+    sp = t.spearman.to_numpy()
+    ok = ~np.isnan(sp)
+    return {
+        "mae_log": (w @ t.erro_abs.to_numpy()) / (w @ t.n.to_numpy()),
+        "acuracia_par_a_par": (w @ t.acertos.to_numpy()) / (w @ t.pares.to_numpy()),
+        "acuracia_par_a_par_7d": (w @ t.acertos_7d.to_numpy()) / (w @ t.pares_7d.to_numpy()),
+        "spearman_intra_canal": (w[..., ok] @ sp[ok]) / w[..., ok].sum(axis=-1),
+    }
+
+
+def bootstrap_diferenca(y, p_novo, p_ref, canal, datas, replicas: int = REPLICAS_BOOTSTRAP,
+                        semente: int = 42) -> dict:
+    """Diferença novo − referência em cada métrica, com IC 95% por bootstrap pareado reamostrando CANAIS
+    (vídeos do mesmo canal não são independentes). Para MAE-log, diferença negativa = o novo erra menos."""
+    a, b = por_canal(y, p_novo, canal, datas), por_canal(y, p_ref, canal, datas)
+    b = b.loc[a.index]
+    w = np.random.default_rng(semente).multinomial(len(a), np.full(len(a), 1 / len(a)), size=replicas)
+    pontual = {k: float(v - _agregar(b, np.ones(len(b)))[k]) for k, v in _agregar(a, np.ones(len(a))).items()}
+    da, db = _agregar(a, w.astype(float)), _agregar(b, w.astype(float))
+    return {k: {"diferenca": pontual[k], "ic95": (float(np.nanpercentile(da[k] - db[k], 2.5)),
+                                                  float(np.nanpercentile(da[k] - db[k], 97.5)))}
+            for k in pontual}
 
 
 def avaliar(y, p, canal, log_mediana, baixo=None, alto=None, datas=None) -> dict:
