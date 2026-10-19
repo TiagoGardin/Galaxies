@@ -1,5 +1,7 @@
 # Model Card
 
+**Versão:** `lgbm_final` (`models/lgbm_final.joblib` e `.json`), treinado em 18/10/2026 sobre a `base_v1` (coleta de 12/10/2026), com 27.204 vídeos de treino + validação (01/04/2025 a 01/07/2026), 106 features. Registrado no MLflow (experimento `galaxies_validacao`, run `artefato_lgbm_final`; avaliação no experimento `galaxies_teste`).
+
 ## Tarefa
 
 **Alvo (decidido):**
@@ -12,7 +14,7 @@ alvo = log1p(curtidas) − log1p(mediana de curtidas dos últimos (até) 20 Shor
 - **Curtidas, não views:** é o alvo primário do TAPI, e a forma de contar views mudou em 31/03/2025 e em 24/08/2026.
 - **Relativo ao canal:** isola o efeito do conteúdo, que é o que interessa para decidir entre criativos. O baseline (mediana do canal) equivale a prever `alvo = 0`.
 - **Conversão para o contrato da tool:** `predicted_metric = (1 + mediana_canal) × e^(previsão) − 1` (inversa exata do `log1p`); `relative_to_channel` é a própria previsão; os quantis do intervalo são convertidos da mesma forma.
-- **Mínimo de histórico:** pelo menos 5 Shorts anteriores para entrar no treino. Abaixo disso, a tool liga o `confidence_flag`.
+- **Mínimo de histórico:** pelo menos 5 Shorts maduros anteriores para entrar no treino. Na tool, o canal precisa de pelo menos 1, e abaixo de 10 o `confidence_flag` liga (`canal_pouco_historico`).
 
 **Alvo secundário (comunicação):** a previsão relativa é convertida em faixas pela razão `(1 + curtidas previstas) / (1 + mediana do canal)`, que é exatamente `e^alvo` (para contagens altas, praticamente igual a curtidas / mediana):
 
@@ -27,16 +29,25 @@ As faixas são simétricas em escala log (0,67 ≈ 1/1,5) e são avaliadas com F
 
 ## Algoritmo e configuração
 
-- **Modelo principal:** LightGBM (`objective="regression_l1"`), escolhido por lidar bem com features tabulares heterogêneas, valores ausentes nativos e por ter objetivo de quantil. O L1 é usado porque o alvo tem cauda longa mesmo em log.
-- **Intervalo de predição de 80%:** dois modelos LightGBM adicionais com `objective="quantile"` e `alpha=0.10` e `alpha=0.90`. Se a cobertura na validação ficar longe de 80%, os limites são recalibrados por predição conformal (MAPIE) na validação.
-- **Hiperparâmetros:** ajustados com Optuna **só no split de validação**, com early stopping. Espaço de busca: `num_leaves`, `learning_rate`, `min_child_samples`, `feature_fraction`, `bagging_fraction`, `lambda_l1`, `lambda_l2`. Configuração final em `configs/lgbm.yaml`; cada execução é registrada no MLflow.
+- **Modelo principal:** média de um LightGBM e de um CatBoost, os dois com perda L1 (o alvo tem cauda longa mesmo em log). O LightGBM lida bem com features heterogêneas, trata ausentes e tem objetivo de quantil; a média com o CatBoost entrou por melhorar a ordenação na validação com IC acima de zero (Spearman intra-canal +0,024, par-a-par na mesma época +0,7 p.p.), sem mudar o erro; no teste, empatou com o LightGBM sozinho. XGBoost e Ridge ficaram atrás (ver EXPERIMENTO.md).
+- **Hiperparâmetros:** busca com Optuna (TPE, semente 42, 40 tentativas) **só na validação**, minimizando o MAE-log, com early stopping nos últimos 10% do treino (em ordem de tempo). Espaço de busca: `num_leaves`, `learning_rate`, `min_child_samples`, `feature_fraction`, `bagging_fraction`, `lambda_l1`, `lambda_l2`. Valores escolhidos em [`configs/lgbm.yaml`](../configs/lgbm.yaml) (`python -m galaxies_tool.ajustar`); cada execução é registrada no MLflow.
+- **Intervalo de predição de 80%:** dois modelos LightGBM com `objective="quantile"` (`alpha` 0,10 e 0,90, folhas de pelo menos 100 vídeos, early stopping pela pinball loss), calibrados por **predição conformal sobre os quantis (CQR, Romano et al. 2019)**: a correção é medida na validação, a fatia mais recente antes do teste, com o modelo que não a viu. Os limites são ordenados para nunca cruzarem a previsão.
+- **Treino final (refit):** escolhidos os hiperparâmetros, o número de árvores (por early stopping), a correção do CQR e os limiares do `confidence_flag` com o modelo treinado só no treino, o artefato final é reajustado em **treino + validação**, para não perder os meses mais recentes, e mantém a correção e os limiares medidos fora da amostra. É esse artefato que o teste avalia uma vez e que o agente serve (`models/lgbm_final.joblib`, `python -m galaxies_tool.artefato`).
 - **Baselines:** (1) mediana do canal (prever alvo = 0); (2) regressão linear de `log1p(curtidas)` sobre `log_mediana_likes_ult20`.
-- **Explicabilidade:** SHAP (`TreeExplainer`) por previsão; os valores são agregados por bloco de features para a explicação em linguagem natural.
-- **`confidence_flag` (baixa confiança)** liga se qualquer condição for verdadeira:
-  - menos de 5 Shorts no histórico do canal;
-  - intervalo de 80% mais largo que o percentil 90 das larguras na validação;
-  - features multimodais ausentes (download ou VLM falhou);
-  - canal com `std_log_likes_ult20` acima do percentil 90 do treino.
+- **Explicabilidade:** TreeSHAP exato de cada modelo (`pred_contrib=True` no LightGBM, `ShapValues` no CatBoost), com a média dos dois (aditiva como a previsão) por previsão, convertido em efeito multiplicativo (`e^φ`); os componentes de cada embedding são somados num único fator, e os valores também são agregados por bloco. O código confere a aditividade (valor base + soma = previsão) a cada chamada.
+- **`confidence_flag` (baixa confiança):** liga se qualquer regra disparar; cada regra tem um código estável e uma frase (contrato da tool). Limiares calculados uma vez, fora do teste, e versionados no artefato:
+
+  | Código | Regra |
+  |---|---|
+  | `canal_pouco_historico` | menos de 10 Shorts maduros (≥ 30 dias) no histórico do canal |
+  | `canal_instavel` | `std_log_likes_ult20` acima do percentil 90 do treino |
+  | `intervalo_largo` | intervalo de 80% mais largo que o percentil 90 das larguras na calibração |
+  | `fora_da_distribuicao` | distância ao 10º vizinho do treino, no espaço padronizado dos PCAs de texto e thumbnail, acima do percentil 99 da calibração |
+  | `setor_fora_do_treino` | setor diferente de moda e beleza (ex.: automotivo) |
+  | `extracao_incompleta` | parte do criativo não pôde ser analisada (imagem, vídeo ou rubrica do VLM) |
+  | `data_fora_do_periodo` | publicação planejada mais de 180 dias depois (ou 365 antes) do fim dos dados |
+
+  A regra só se justifica se os casos sinalizados errarem mais. No teste, todas separam erro: MAE-log de 1,10 nos sinalizados contra 0,70 nos demais, de 0,81 (`fora_da_distribuicao`, a mais fraca) a 1,53 (`canal_pouco_historico`) por motivo.
 
 ## Features
 
@@ -44,8 +55,10 @@ As faixas são simétricas em escala log (0,67 ≈ 1/1,5) e são avaliadas com F
 |---|---|---|
 | A | Histórico do canal (sempre com Shorts ≥ 30 dias antes), tempo da publicação, metadados | API do YouTube |
 | B | Features manuais do título/descrição + embedding de texto (PCA 16) | Texto |
-| C | Embeddings SigLIP 2 da thumbnail e do gancho, estética, rosto, OCR, cortes, movimento, voz, energia de áudio | Vídeo e thumbnail (offline) |
-| D | Rubrica JSON respondida pelo VLM | Gemini Flash-Lite |
+| C | Thumbnail (base inteira): SigLIP 2 (PCA 16), cor, rosto, OCR. Vídeo (amostra): cortes, movimento, voz, energia de áudio, SigLIP 2 do gancho (PCA 8) | Vídeo e thumbnail (offline) |
+| D | Rubrica JSON respondida pelo VLM (amostra): 8 sim/não, 5 notas 0–10 e 4 categorias | Gemini 3.1 Flash-Lite |
+
+As partes de vídeo do bloco C e o bloco D existem só numa amostra da base (cota e ritmo de download; ver EXPERIMENTO.md); fora dela, as colunas são ausentes e o LightGBM as trata nativamente. No agente, todo criativo em vídeo passa pelas duas etapas.
 
 Lista completa, regras anti-vazamento e features descartadas: [FEATURES.md](FEATURES.md).
 
@@ -53,7 +66,23 @@ Lista completa, regras anti-vazamento e features descartadas: [FEATURES.md](FEAT
 
 Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log, MAPE em curtidas, Spearman global e intra-canal, acurácia par-a-par intra-canal (todos os pares e pares da mesma época, a até 7 dias), cobertura do intervalo de 80% e F1 macro das faixas.
 
-_Pendente: preencher com os números do conjunto de teste após o treino final, incluindo os baselines, o recorte por setor e por tipo de canal (marca × criador)._
+**Teste temporal** (4.861 vídeos, 02/07 a 12/09/2026, avaliado uma única vez):
+
+| | MAE-log | Spearman intra-canal | Par-a-par | Par-a-par mesma época | Cobertura 80% | F1 faixas |
+|---|---|---|---|---|---|---|
+| Mediana do canal (baseline) | 0,835 | indefinido | 50,0% | 50,0% | — | 0,128 |
+| **Este modelo** | **0,760** | **0,357** | **61,2%** | **59,1%** | **82,7%** | **0,278** |
+
+| Recorte | MAE-log (modelo × baseline) | Par-a-par mesma época | Cobertura 80% |
+|---|---|---|---|
+| Beleza (3.344) | 0,81 × 0,88 | 57,8% | 81,8% |
+| Moda (1.517) | 0,65 × 0,73 | 63,7% | 84,8% |
+| Criadores (3.953) | 0,75 × 0,82 | 59,2% | 82,7% |
+| Marcas (908) | 0,81 × 0,90 | 59,0% | 82,6% |
+| Canais nunca vistos (1.146) | 0,84 × 0,83 | 52,3% | — |
+| Vídeos virais (≥ 3× a mediana) | 1,79 × 2,01 | — | 42,6% |
+
+`confidence_flag`: ligou em 16% do teste; MAE-log 1,10 nos sinalizados contra 0,70 nos demais. Detalhes e IC em [EXPERIMENTO.md](EXPERIMENTO.md).
 
 ## Usos pretendidos
 
@@ -79,4 +108,5 @@ _Pendente: preencher com os números do conjunto de teste após o treino final, 
 - **Notas subjetivas do VLM** podem refletir o reconhecimento de criadores famosos.
 - **Deriva:** a plataforma muda a distribuição dos Shorts; o modelo precisa de retreino periódico com coletas novas.
 - Condições do `confidence_flag`: ver "Algoritmo e configuração".
-- _Pendente: completar com a análise de erros do experimento (onde o modelo mais erra)._
+- **Onde mais erra** (teste): vídeos que viralizam muito acima do canal (não os antecipa; o intervalo cobre só 43% deles), anúncios com mídia paga e publis de cupom com engajamento quase nulo, canais pequenos (< 20 mil inscritos) e canais instáveis.
+- **Canais que o modelo nunca viu no treino:** o erro empata com a mediana do canal e a ordenação fica pouco acima do acaso (52,3% na mesma época); use a previsão como ordem de grandeza.

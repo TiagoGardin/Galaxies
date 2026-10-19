@@ -65,7 +65,7 @@ Listas de palavras-chave dos formatos:
 | `fmt_antes_depois` | antes e depois, transformação, resultado |
 | `fmt_trend` | trend, desafio, challenge |
 
-A precisão das flags é validada contra cerca de 100 vídeos rotulados à mão (ver EXPERIMENTO.md).
+A precisão das flags deve ser validada contra 100 vídeos rotulados à mão (ver "Validação das flags de formato" em EXPERIMENTO.md). A amostra e o script estão prontos (`galaxies_tool/rotulos.py`); a rotulagem manual ainda não foi feita.
 
 ## Bloco C — Visual e áudio (camada multimodal mínima, 100% offline)
 
@@ -78,20 +78,22 @@ Pergunta do bloco: **como o vídeo é fisicamente (pixels, som)?**
 | `thumb_tem_rosto`, `thumb_area_rosto` | Presença humana | MediaPipe Face Detection (Tasks API) | Rosto atrai o olhar; close-up é central em beleza |
 | `thumb_tem_texto`, `thumb_n_palavras_ocr` | Texto sobreposto | EasyOCR | Text overlay aparece entre as features importantes na literatura |
 | `cortes_por_segundo` | Ritmo de edição | PySceneDetect (`ContentDetector`) ÷ duração | Edição rápida segura atenção |
-| `movimento_medio` | Quanto a imagem mexe | Magnitude média do optical flow (Farneback) entre frames amostrados | Vídeo estático perde o espectador |
-| `emb_gancho_pca_1..8` | Primeiros 3 segundos | SigLIP 2 em 2–3 frames de 0–3 s → média → PCA | O gancho decide se a pessoa continua assistindo |
-| `tem_voz`, `voz_por_segundo` | Presença de voz (fala **ou canto**) | faster-whisper: palavras transcritas ÷ duração (ver regra 9) | Narração explicativa forma cluster próprio |
-| `energia_rms` | Energia do áudio | RMS médio do áudio | Energia/música é a feature nº 1 no estudo de Shorts de referência |
+| `movimento_medio` | Quanto a imagem mexe | Magnitude média do optical flow (Farneback) a 2 quadros/s, em cinza 180x320 | Vídeo estático perde o espectador |
+| `emb_gancho_pca_1..8` | Primeiros 3 segundos | SigLIP 2 nos quadros de 0,5 s, 1,5 s e 2,5 s → média renormalizada → PCA para 8 dimensões (ajustado só no treino), separado do PCA da thumbnail | O gancho decide se a pessoa continua assistindo |
+| `tem_voz`, `voz_por_segundo` | Presença de voz (fala **ou canto**) | faster-whisper `small` com VAD: ≥ 3 palavras transcritas; palavras ÷ duração (ver regra 9) | Narração explicativa forma cluster próprio |
+| `energia_rms` | Energia do áudio | RMS médio do áudio (16 kHz, mono) | Energia/música é a feature nº 1 no estudo de Shorts de referência |
 
-O vídeo é baixado em 360p com yt-dlp e apagado logo depois de medido; o ID do vídeo é a chave de cache de cada etapa. Frames e áudio rodam na mesma amostra do VLM (ver "Amostra dos blocos C (vídeo) e D" em [EXPERIMENTO.md](EXPERIMENTO.md)).
+O vídeo é baixado em 360p com yt-dlp e apagado logo depois de medido; o ID do vídeo é a chave de cache de cada etapa (`data/features/video/<id>.json`, `galaxies_tool/video.py`; o embedding do gancho sai de `python -m galaxies_tool.thumbs siglip_gancho`). Frames e áudio rodam na mesma amostra do VLM (ver "Amostra dos blocos C (vídeo) e D" em [EXPERIMENTO.md](EXPERIMENTO.md)). Fora da amostra, essas colunas ficam ausentes (NaN), e o LightGBM aprende para que lado mandar os ausentes; a marca de "tem vídeo" (`tem_video`) é só diagnóstico e nunca entra no modelo (em produção ela seria sempre verdadeira).
 
-Vídeos "made for kids" ficam sem esta parte: são públicos, mas sem login o YouTube não entrega o arquivo (só o storyboard), com nenhum cliente do yt-dlp. Passar cookies de uma conta Google resolveria, mas arrisca bloquear a conta, e por isso não foi feito. Na amostra, são 136 de 8.361 vídeos (1,6%), concentrados em canais de marca: 11% dos vídeos de moda/marca e 5% de beleza/marca, quase todos de FILA Brasil, Dafiti, Lupo e Simple Organic. O LightGBM recebe essas colunas como ausentes. O VLM analisa esses vídeos normalmente, então o bloco D cobre o que a parte de vídeo do bloco C perde.
+No agente, um vídeo novo passa pelo mesmo caminho (`extracao.py`): uma URL do YouTube é baixada em 360p como a base, e um arquivo local do cliente é convertido para 360p no lado menor com ffmpeg antes de ser medido. O agente reproduz exatamente as colunas do treino (conferido em vídeos da validação: diferença zero no vídeo, no gancho e na rubrica; ~1e-5 no embedding da thumbnail, pelo arredondamento em float16 do cache).
+
+Vídeos "made for kids" ficam sem esta parte: são públicos, mas sem login o YouTube não entrega o arquivo (só o storyboard), com nenhum cliente do yt-dlp. Passar cookies de uma conta Google resolveria, mas arrisca bloquear a conta, e por isso não foi feito. Na amostra, são 136 de 8.361 vídeos (1,6%), concentrados em canais de marca: 11% dos vídeos de moda/marca e 5% de beleza/marca, quase todos de FILA Brasil, Dafiti, Lupo e Simple Organic. Outros 6 vídeos do teste (0,1%) pedem login em qualquer tentativa ("Please sign in"), embora a API os declare públicos e sem restrição; ficaram sem esta parte. No total, 8.219 dos 8.361 vídeos da amostra (98,3%) têm a parte de vídeo. O LightGBM recebe essas colunas como ausentes. O VLM analisa os vídeos "made for kids" normalmente, então o bloco D cobre o que a parte de vídeo do bloco C perde.
 
 ## Bloco D — VLM
 
-Pergunta do bloco: **que julgamento de conteúdo um especialista faria?** O Gemini Flash-Lite (`gemini-3.1-flash-lite`, temperatura 0) recebe **só o vídeo** (URL pública do YouTube), sem título, canal ou métricas (regra 6), e responde um JSON fixo validado com Pydantic (`galaxies_tool/vlm.py`). Fallback local: Qwen-VL quantizado.
+Pergunta do bloco: **que julgamento de conteúdo um especialista faria?** O Gemini Flash-Lite (`gemini-3.1-flash-lite`, temperatura 0) recebe **só o vídeo** (a URL pública do YouTube; no agente, um vídeo local vai pela Files API do Gemini), sem título, canal ou métricas (regra 6), e responde um JSON fixo validado com Pydantic (`galaxies_tool/vlm.py`). Não há fallback local implementado: se o Gemini falhar, as colunas do bloco D ficam ausentes e o agente sinaliza baixa confiança (`extracao_incompleta`). Um VLM aberto (Qwen2.5-VL) é o caminho para produção e para criativos confidenciais (ver README, Limitações).
 
-Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente sobrecarregado (erro 503, ~30 s por vídeo quando respondia), o que inviabilizaria a amostra; o `gemini-2.5-flash-lite` não está mais disponível para contas novas. O `gemini-3.1-flash-lite` processa o vídeo de verdade (~8,7 mil tokens de entrada para 95 s) em 2–3 s. Toda a amostra usa o mesmo modelo; as 134 rubricas feitas antes com o 3.5 ficam em `data/features/vlm_gemini35/` só para medir a concordância entre os dois modelos. Resultado nesses 134 vídeos: campos sim/não concordam em 87–99% (o mais fraco é `tem_musica_de_fundo`); notas 0–10 têm Spearman 0,66–0,84 (o mais fraco é `forca_hook_0a10`); `audio_original_ou_musica` e `tom_narracao` concordam em 77–80%, e `formato` em 72% (contra 34% de acertar sempre a classe mais comum). A troca de modelo não muda o que a rubrica mede; `forca_hook_0a10` e `formato` são os campos mais subjetivos e serão conferidos contra os ~100 vídeos rotulados à mão.
+Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente sobrecarregado (erro 503, ~30 s por vídeo quando respondia), o que inviabilizaria a amostra; o `gemini-2.5-flash-lite` não está mais disponível para contas novas. O `gemini-3.1-flash-lite` processa o vídeo de verdade (~8,7 mil tokens de entrada para 95 s) em 2–3 s. Toda a amostra usa o mesmo modelo; as 134 rubricas feitas antes com o 3.5 ficam em `data/features/vlm_gemini35/` só para medir a concordância entre os dois modelos. Resultado nesses 134 vídeos: campos sim/não concordam em 87–99% (o mais fraco é `tem_musica_de_fundo`); notas 0–10 têm Spearman 0,66–0,84 (o mais fraco é `forca_hook_0a10`); `audio_original_ou_musica` e `tom_narracao` concordam em 77–80%, e `formato` em 72% (contra 34% de acertar sempre a classe mais comum). A troca de modelo não muda o que a rubrica mede; `forca_hook_0a10` e `formato` são os campos mais subjetivos; a conferência do `formato` contra 100 vídeos rotulados à mão está preparada, mas a rotulagem ainda não foi feita (EXPERIMENTO.md).
 
 | Feature | Tipo | Por que ajuda |
 |---|---|---|
@@ -113,9 +115,13 @@ Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente 
 | `formato` | `tutorial` / `grwm` / `haul` / `review` / `trend` / `humor` / `outro` | Formato **real** do vídeo (o bloco B pega o declarado) |
 | `potencial_viral_0a10` | nota | **Coletado, nunca usado no modelo**; só para a comparação LLM zero-shot vs. modelo |
 
-Os campos binários são os mais confiáveis; as notas 0–10 são subjetivas e o VLM pode reconhecer criadores famosos, por isso o ganho delas é medido à parte.
+Os campos binários são os mais confiáveis; as notas 0–10 são subjetivas e o VLM pode reconhecer criadores famosos, por isso o ganho delas é medido à parte (hipótese H5). No teste, binárias e notas empataram: H5 não se confirmou.
 
-Prompt (resumo): _"Assista ao vídeo e responda somente o JSON abaixo, sem texto adicional. Avalie apenas o que aparece no vídeo; não use conhecimento sobre o criador ou sobre a popularidade do vídeo."_ seguido do esquema com os campos acima. A resposta é validada com Pydantic; respostas inválidas são reenviadas uma vez e depois marcadas como ausentes.
+No modelo, as colunas ganham o prefixo `vlm_` (para não colidir com as de outros blocos, como `tem_rosto` × `thumb_tem_rosto`): binárias viram 0/1, notas ficam numéricas e os campos de escolha viram categorias com a lista fixa do esquema (não aprendida dos dados). A conversão é a mesma no treino e no agente (`galaxies_tool/multimodal.py`).
+
+Prompt (texto exato em `galaxies_tool/vlm.py`): _"Você é um analista de criativos de moda e beleza. Assista ao vídeo e preencha a rubrica. Avalie apenas o que aparece e se ouve no vídeo. Não use conhecimento sobre quem é o criador, sobre a marca ou sobre a popularidade do vídeo. Notas de 0 a 10: 0 = ausente/péssimo, 10 = excelente."_ O esquema vai como `response_schema` (JSON estruturado), com temperatura 0. A resposta é validada com Pydantic; respostas inválidas são reenviadas uma vez e depois marcadas como ausentes.
+
+Diferenças em relação à rubrica sugerida no TAPI: a rubrica cobre gancho, pessoas e produto, texto e edição, áudio, estética e mensagem, mas não coleta os campos de texto livre (`hook_primeiros_3s`, `elementos_video_top5`, `elementos_audio_top5`) nem `cor_dominante`, `brilho_saturacao_0a10` e `energia_musica_0a10`: brilho, saturação e cor já são medidos na thumbnail (OpenCV) e a energia do áudio no bloco C (RMS). Sem os descritores livres, a clusterização de descritores da "camada 2" do TAPI não foi feita. Limitação conhecida: o prompt ancora só os extremos da escala (0 e 10), não o meio; trocar o prompt agora exigiria refazer toda a amostra (aula 4.7), então fica registrado como limitação.
 
 ## Features descartadas
 
@@ -127,4 +133,6 @@ Prompt (resumo): _"Assista ao vídeo e responda somente o JSON abaixo, sem texto
 | `usa_audio_em_alta` (VLM) | O VLM não sabe o que estava em alta no dia da publicação, só o que ficou famoso depois. Substituída por `tem_musica_de_fundo` e `audio_original_ou_musica`. |
 | `potencial_viral_0a10` (VLM) | É o LLM chutando o resultado ("o LLM nunca chuta o número"). Guardada só para a comparação opcional LLM zero-shot vs. modelo. |
 | `channel_id` | Faria o modelo decorar o canal. |
+| `largura`, `altura`, `vertical`, `duracao_video_s` (vídeo) | Medidos no download, mas quase todo Short é 360x640 e a duração já vem da API (`duracao_s`, bloco A). |
+| `tem_video`, `tem_vlm` | Marcam quem está na amostra (diagnóstico). Em produção seriam sempre verdadeiras, e a falha de download pode depender do que aconteceu depois da publicação (aula 4.8). |
 | Views, comentários | Não existem antes da publicação. |

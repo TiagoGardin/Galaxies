@@ -81,6 +81,16 @@ Além desses, 700 vídeos-alvo ficam fora do treino por terem menos de 5 Shorts 
 
 Dois canais incluídos (Carolina Bruna e Val Petrin) não têm nenhum vídeo-alvo elegível: publicaram quase todos os Shorts em poucas semanas, sem histórico de 30 dias.
 
+## Camada multimodal (derivada dos vídeos)
+
+| Parte | Cobertura | Como | Datas |
+|---|---|---|---|
+| Thumbnail (bloco C) | todos os 40.865 vídeos-alvo | thumbnail da API, quadro central 9:16 → cor, rosto (MediaPipe), OCR (EasyOCR), SigLIP 2 | 13–14/10/2026 |
+| Vídeo (bloco C) | 8.219 de 8.361 vídeos da amostra (98,3%) | yt-dlp em 360p → PySceneDetect, optical flow, faster-whisper, energia RMS, 3 quadros do gancho (SigLIP 2); vídeo e áudio apagados depois de medidos | 13–17/10/2026 |
+| Rubrica do VLM (bloco D) | 2.905 vídeos da amostra (1.419 do treino, 400 da validação, 1.086 do teste), até a cota gratuita acabar | `gemini-3.1-flash-lite` pela URL pública, só o vídeo no prompt | 13–19/10/2026 |
+
+A amostra (`data/features/amostra_vlm.txt`, semente 42) tem 2.500 vídeos do treino, 1.000 da validação e todo o teste temporal; o VLM segue a mesma amostra em outra ordem (`fila_vlm.txt`). Falhas da parte de vídeo: 136 vídeos "made for kids" (o YouTube não entrega o arquivo sem login) e 6 vídeos que pedem login sem motivo aparente; ver [FEATURES.md](FEATURES.md). Na coleta, nenhum vídeo da amostra estava removido ou privado. As medidas por vídeo ficam em `data/features/video/` e `data/features/vlm/` (um JSON por vídeo, com o modelo usado); quadros, áudios e thumbnails ficam em `data/media/`, fora do git.
+
 ## Filtros aplicados
 
 ### Vídeos
@@ -139,9 +149,10 @@ Esquema de `data/processed/base_v1.parquet` (uma linha por Short com curtidas vi
 
 - **Fonte oficial:** coleta só pela YouTube Data API v3, dentro dos [Termos de Serviço da API](https://developers.google.com/youtube/terms/api-services-terms-of-service) e da cota gratuita. Sem scraping de páginas.
 - **Dados públicos:** só metadados e métricas públicas de canais e vídeos públicos. Nenhum dado de usuário, comentário individual ou informação privada é coletado.
-- **Mídia não é redistribuída:** vídeos, áudios, frames e thumbnails baixados para a camada multimodal ficam em `data/media/`, que é ignorado pelo git. O repositório guarda só IDs, metadados e features derivadas.
+- **Mídia não é redistribuída:** vídeos, áudios, frames e thumbnails baixados para a camada multimodal ficam em `data/media/`, que é ignorado pelo git.
+- **Metadados publicados:** o repositório é público e inclui a coleta bruta e a base processada (`data/raw/`, `data/processed/`): IDs, títulos, descrições, tags e contagens públicas de curtidas, views e comentários, para que os resultados possam ser reproduzidos e auditados. Isso é uma redistribuição de dados da API. Os Termos da API restringem armazenar e exibir esses dados sem atualização periódica, e a trilha do curso (aula 1.8) recomenda não publicar a base; a decisão de mantê-la pública foi do responsável pelo projeto, para fins acadêmicos. Quem quiser só o código pode apagar `data/raw/` e `data/processed/` e recoletar com a própria chave.
 - **VLM no free tier do Gemini:** os vídeos enviados podem ser usados pelo Google para treino. É aceitável porque são vídeos públicos, sem dados pessoais além do que o próprio criador publicou.
-- **Atualidade:** os Termos da API pedem que dados armazenados sejam atualizados ou apagados periodicamente. As coletas são datadas e a base é de uso acadêmico, sem republicação.
+- **Atualidade:** os Termos da API pedem que dados armazenados sejam atualizados ou apagados periodicamente. As coletas são datadas (`collected_at`) e não são atualizadas: a base publicada é um retrato de 12/10/2026, de uso acadêmico.
 - **Uso pretendido:** pesquisa e prova de conceito para a Galaxies. A base não deve ser usada para avaliar ou ranquear criadores individualmente fora deste contexto.
 
 ## Vieses e limitações — o que a base NÃO representa
