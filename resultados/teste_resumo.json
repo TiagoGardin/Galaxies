@@ -1,0 +1,195 @@
+{
+  "avaliado_em": "2026-10-19T21:59:06+00:00",
+  "modelo": "lgbm_final",
+  "n_teste": 4861,
+  "n_teste_com_video": 4783,
+  "n_teste_com_vlm": 1086,
+  "n_canais_novos": 1146,
+  "principal": {
+    "baseline_mediana_canal": {
+      "n": 4861,
+      "mae_log": 0.8351621079909087,
+      "mape": 1.8760148162303043,
+      "spearman": NaN,
+      "spearman_absoluto": 0.8584715059503629,
+      "spearman_intra_canal": NaN,
+      "n_canais_intra": 0,
+      "acuracia_par_a_par": 0.5,
+      "n_pares": 93603,
+      "f1_faixas": 0.12842073077511085,
+      "acuracia_par_a_par_7d": 0.5,
+      "n_pares_7d": 20579
+    },
+    "baseline_linear": {
+      "n": 4861,
+      "mae_log": 0.8419201882599179,
+      "mape": 1.9389944205387475,
+      "spearman": 0.08120190973462481,
+      "spearman_absoluto": 0.8584715059503629,
+      "spearman_intra_canal": 0.25856151769920044,
+      "n_canais_intra": 163,
+      "acuracia_par_a_par": 0.606486971571424,
+      "n_pares": 93603,
+      "f1_faixas": 0.1284796573875803,
+      "acuracia_par_a_par_7d": 0.5344525973079353,
+      "n_pares_7d": 20579
+    },
+    "modelo final (A+B+C+D)": {
+      "n": 4861,
+      "mae_log": 0.7596522608985312,
+      "mape": 1.1996926510269414,
+      "spearman": 0.40484339133000685,
+      "spearman_absoluto": 0.8816219579997341,
+      "spearman_intra_canal": 0.35679256014516786,
+      "n_canais_intra": 175,
+      "acuracia_par_a_par": 0.6124376355458693,
+      "n_pares": 93603,
+      "f1_faixas": 0.27806888568442956,
+      "acuracia_par_a_par_7d": 0.5913309684629963,
+      "n_pares_7d": 20579,
+      "cobertura_80": 0.8271960501954331,
+      "largura_media": 2.6756571273281926
+    }
+  },
+  "final_vs_baselines": {
+    "baseline_mediana_canal": {
+      "mae_log": "-0.0755 [-0.0970; -0.0548]",
+      "acuracia_par_a_par": "+0.112 [+0.096; +0.128]",
+      "acuracia_par_a_par_7d": "+0.091 [+0.073; +0.109]",
+      "spearman_intra_canal": "+nan [+nan; +nan]"
+    },
+    "baseline_linear": {
+      "mae_log": "-0.0823 [-0.1023; -0.0630]",
+      "acuracia_par_a_par": "+0.006 [-0.016; +0.031]",
+      "acuracia_par_a_par_7d": "+0.057 [+0.037; +0.080]",
+      "spearman_intra_canal": "+0.098 [+0.041; +0.151]"
+    }
+  },
+  "canais_novos": {
+    "baseline_mediana_canal": {
+      "n": 1146,
+      "mae_log": 0.8302779154353714,
+      "mape": 2.616314399019183,
+      "spearman": NaN,
+      "spearman_absoluto": 0.8249776883614572,
+      "spearman_intra_canal": NaN,
+      "n_canais_intra": 0,
+      "acuracia_par_a_par": 0.5,
+      "n_pares": 21880,
+      "f1_faixas": 0.129126213592233,
+      "acuracia_par_a_par_7d": 0.5,
+      "n_pares_7d": 4225
+    },
+    "baseline_linear": {
+      "n": 1146,
+      "mae_log": 0.8590767973186938,
+      "mape": 2.8885901676830694,
+      "spearman": 0.0647058050845285,
+      "spearman_absoluto": 0.8249776883614572,
+      "spearman_intra_canal": 0.13869047948534777,
+      "n_canais_intra": 42,
+      "acuracia_par_a_par": 0.572737659963437,
+      "n_pares": 21880,
+      "f1_faixas": 0.129126213592233,
+      "acuracia_par_a_par_7d": 0.5343195266272189,
+      "n_pares_7d": 4225
+    },
+    "modelo final (A+B+C+D)": {
+      "n": 1146,
+      "mae_log": 0.8427533706521395,
+      "mape": 3.0350141797472086,
+      "spearman": 0.2002820613993972,
+      "spearman_absoluto": 0.8352978346264186,
+      "spearman_intra_canal": 0.14487994631539014,
+      "n_canais_intra": 44,
+      "acuracia_par_a_par": 0.5443327239488117,
+      "n_pares": 21880,
+      "f1_faixas": 0.23730440405009404,
+      "acuracia_par_a_par_7d": 0.5228402366863906,
+      "n_pares_7d": 4225,
+      "cobertura_80": 0.8228621291448517
+    }
+  },
+  "canais_novos_vs_baseline": {
+    "mae_log": "+0.0125 [-0.0295; +0.0571]",
+    "acuracia_par_a_par": "+0.044 [+0.029; +0.070]",
+    "acuracia_par_a_par_7d": "+0.023 [+0.004; +0.058]",
+    "spearman_intra_canal": "+nan [+nan; +nan]"
+  },
+  "confidence_flag": [
+    {
+      "grupo": "não sinalizados",
+      "n": 4084,
+      "mae_log": 0.6953045438139146,
+      "cobertura": 0.8376591576885406
+    },
+    {
+      "grupo": "sinalizados",
+      "n": 777,
+      "mae_log": 1.0978711496676095,
+      "cobertura": 0.7722007722007722
+    },
+    {
+      "grupo": "motivo: canal_instavel",
+      "n": 426,
+      "mae_log": 1.1264848128648768,
+      "cobertura": 0.7699530516431925
+    },
+    {
+      "grupo": "motivo: canal_pouco_historico",
+      "n": 9,
+      "mae_log": 1.5286731908733484,
+      "cobertura": 0.8888888888888888
+    },
+    {
+      "grupo": "motivo: extracao_incompleta",
+      "n": 78,
+      "mae_log": 1.2229151340689997,
+      "cobertura": 0.717948717948718
+    },
+    {
+      "grupo": "motivo: fora_da_distribuicao",
+      "n": 47,
+      "mae_log": 0.8114683499350477,
+      "cobertura": 0.8085106382978723
+    },
+    {
+      "grupo": "motivo: intervalo_largo",
+      "n": 535,
+      "mae_log": 1.1188581996471911,
+      "cobertura": 0.7869158878504673
+    }
+  ],
+  "llm_zero_shot_vs_modelo": {
+    "n": 1086,
+    "llm_zero_shot": {
+      "n": 1086,
+      "mae_log": 1.3307604155449,
+      "mape": 2.821085700594253,
+      "spearman": 0.06718829646573163,
+      "spearman_absoluto": 0.8202761138608212,
+      "spearman_intra_canal": 0.07829038125359451,
+      "n_canais_intra": 88,
+      "acuracia_par_a_par": 0.5132847864593584,
+      "n_pares": 5081,
+      "f1_faixas": 0.2421541973896028,
+      "acuracia_par_a_par_7d": 0.5241864555848724,
+      "n_pares_7d": 1137
+    },
+    "modelo": {
+      "n": 1086,
+      "mae_log": 0.7563850640826034,
+      "mape": 0.9904192019900254,
+      "spearman": 0.42583734621560504,
+      "spearman_absoluto": 0.8835457397422318,
+      "spearman_intra_canal": 0.32470999714795185,
+      "n_canais_intra": 88,
+      "acuracia_par_a_par": 0.5959456799842551,
+      "n_pares": 5081,
+      "f1_faixas": 0.27976912275793797,
+      "acuracia_par_a_par_7d": 0.6015831134564644,
+      "n_pares_7d": 1137
+    },
+    "nota": "só a ordenação é comparável: a nota 0–10 não está na escala do alvo (MAE não se aplica)"
+  }
+}
