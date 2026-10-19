@@ -5,7 +5,8 @@ funções do treino (features.historico_do_alvo e atividade_de_postagem), com a 
 data de publicação. Só entra o que existiria antes da publicação: curtidas de Shorts publicados >= 30
 dias antes (regra 2) e datas de Shorts anteriores.
 
-Comparáveis: Shorts do mesmo canal publicados antes da data planejada, mais parecidos com o criativo
+Comparáveis: Shorts do mesmo canal publicados pelo menos 30 dias antes da data planejada (curtidas
+maduras, como no histórico), mais parecidos com o criativo
 (cosseno na média dos embeddings de texto e de thumbnail), com o desempenho deles em relação ao canal.
 Sem histórico do canal na base, busca no mesmo setor.
 """
@@ -24,6 +25,7 @@ from galaxies_tool.features import (
     shorts_da_coleta,
 )
 from galaxies_tool.modelo import EMB_TEXTO, EMB_THUMB, FEATURES
+from galaxies_tool.regras import IDADE_MINIMA_DIAS
 
 CANAIS = Path("data/canais.csv")
 N_COMPARAVEIS = 5
@@ -64,7 +66,10 @@ def _alvos() -> pd.DataFrame:
 
 @lru_cache(maxsize=1)
 def _embeddings() -> tuple[list[str], np.ndarray, np.ndarray]:
-    """Embeddings de texto e de thumbnail alinhados pelos mesmos ids (os vídeos que têm os dois)."""
+    """Embeddings de texto e de thumbnail alinhados pelos mesmos ids (os vídeos que têm os dois). Sem os
+    arquivos (não versionados; ver README), não há comparáveis, e o resto do agente funciona normalmente."""
+    if not (EMB_TEXTO.exists() and EMB_THUMB.exists()):
+        return [], np.zeros((0, 768), np.float32), np.zeros((0, 768), np.float32)
 
     def ler(arq):
         ids = arq.with_name(arq.stem + "_ids.txt").read_text().split("\n")
@@ -124,10 +129,15 @@ def features_de_tempo(planned: pd.Timestamp) -> dict:
 def comparaveis(
     atr: dict, planned: pd.Timestamp, setor: str, channel_id: str | None, n: int = N_COMPARAVEIS
 ) -> list[dict]:
-    """Shorts mais parecidos com o criativo entre os publicados antes de `planned` (mesmo canal ou setor)."""
+    """Shorts mais parecidos com o criativo entre os publicados pelo menos 30 dias antes de `planned`
+    (mesmo canal ou setor). A janela de maturidade é a mesma do histórico (regra 2): um Short de poucos
+    dias ainda não tem as curtidas finais, que são as que aparecem aqui (aula 6.4)."""
     ids, txt, img = _embeddings()
+    if not ids:
+        return []
     alvos = _alvos().reindex(ids)
-    elegivel = (alvos.published_at < planned).to_numpy().copy()
+    maduro = planned - pd.Timedelta(days=IDADE_MINIMA_DIAS)
+    elegivel = (alvos.published_at <= maduro).to_numpy().copy()
     mesmo_canal = (alvos.channel_id == channel_id).to_numpy() if channel_id else np.zeros(len(ids), bool)
     if (elegivel & mesmo_canal).sum() >= n:
         elegivel = elegivel & mesmo_canal

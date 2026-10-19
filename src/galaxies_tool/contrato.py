@@ -9,13 +9,15 @@ from datetime import datetime
 from typing import Literal
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 FUSO = ZoneInfo("America/Sao_Paulo")
 Setor = Literal["moda", "beleza", "automotivo"]
 
 
 class PostHistorico(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     published_at: datetime
     likes: int = Field(ge=0)
 
@@ -28,12 +30,16 @@ class PostHistorico(BaseModel):
 class ChannelStats(BaseModel):
     """Histórico do canal enviado pelo cliente: Shorts anteriores com curtidas (quanto mais, melhor; >= 5)."""
 
+    model_config = ConfigDict(extra="forbid")
+
     tipo_canal: Literal["criador", "marca"]
     posts: list[PostHistorico] = Field(min_length=1)
     inscritos: int | None = Field(default=None, ge=0, description="Informativo: não entra no modelo")
 
 
 class EntradaCriativo(BaseModel):
+    model_config = ConfigDict(extra="forbid")  # campo desconhecido é erro, não é ignorado em silêncio
+
     creative: str = Field(description="URL do YouTube, caminho de vídeo (.mp4/.mov) ou imagem, ou só texto")
     caption: str = Field(default="", description="Legenda/título planejado")
     description: str = Field(default="", description="Descrição planejada (opcional)")
@@ -43,6 +49,11 @@ class EntradaCriativo(BaseModel):
     channel_stats: ChannelStats | None = None
     sector: Setor
     id: str | None = Field(default=None, description="Rótulo do criativo para o ranking (opcional)")
+    analisar_video: bool = Field(
+        default=True,
+        description="Vídeo (URL ou arquivo): baixa/mede o vídeo e chama o VLM (~1 min no 1º uso do vídeo). "
+        "False = só texto e imagem de capa, mais rápido e com menos informação (a confiança cai).",
+    )
 
     @field_validator("planned_datetime")
     @classmethod
@@ -54,6 +65,22 @@ class EntradaCriativo(BaseModel):
         if not self.channel_id and not self.channel_stats:
             raise ValueError("informe channel_id ou channel_stats")
         return self
+
+
+CodigoMotivo = Literal[
+    "canal_pouco_historico",
+    "canal_instavel",
+    "intervalo_largo",
+    "fora_da_distribuicao",
+    "setor_fora_do_treino",
+    "extracao_incompleta",
+    "data_fora_do_periodo",
+]
+
+
+class MotivoConfianca(BaseModel):
+    codigo: CodigoMotivo
+    texto: str
 
 
 class Driver(BaseModel):
@@ -89,7 +116,9 @@ class PrevisaoCriativo(BaseModel):
     interval_high: int
     interval_level: float = 0.8
     confidence_flag: bool = Field(description="True = baixa confiança")
-    confidence_reasons: list[str]
+    confidence_reasons: list[MotivoConfianca] = Field(
+        description="Por que a confiança é baixa (vazio = normal)"
+    )
     relative_to_channel: RelativoCanal
     top_drivers: list[Driver]
     contribuicao_por_bloco: dict[str, float] = Field(description="Soma do SHAP por bloco, em % de efeito")
@@ -108,6 +137,12 @@ class ItemRanking(BaseModel):
     razao_prevista: float
     faixa: str
     confidence_flag: bool
+    prob_superar_seguinte: float | None = Field(
+        default=None,
+        description="P(este criativo render mais que o próximo do ranking), supondo erros independentes e "
+        "normais em log, com o desvio tirado do intervalo de 80%. Criativos do mesmo canal costumam errar "
+        "juntos, então a suposição é conservadora (puxa a probabilidade para 50%).",
+    )
 
 
 class RankingCriativos(BaseModel):

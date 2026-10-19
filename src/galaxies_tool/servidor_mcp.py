@@ -11,6 +11,7 @@ Configuração num cliente MCP (ex.: Claude Desktop, Claude Code ou o agente da 
 Tools: prever_criativo, ordenar_criativos e what_if_horarios (mesmo contrato de galaxies_tool.contrato).
 """
 
+import json
 import os
 import sys
 from datetime import datetime
@@ -18,7 +19,7 @@ from pathlib import Path
 
 from mcp.server.mcpserver import MCPServer
 
-from galaxies_tool import agente
+from galaxies_tool import agente, modelo, previsao
 from galaxies_tool.contrato import EntradaCriativo, PrevisaoCriativo, RankingCriativos
 
 os.chdir(Path(__file__).resolve().parents[2])  # dados e modelos usam caminhos relativos à raiz do repositório
@@ -27,10 +28,12 @@ mcp = MCPServer(
     "galaxies-preditor",
     instructions=(
         "Prevê, antes da publicação, as curtidas de um YouTube Short de moda ou beleza em relação ao "
-        "padrão do "
-        "canal, com intervalo de 80%, fatores que pesaram e criativos comparáveis. O número vem de um modelo "
-        "LightGBM treinado em ~22 mil Shorts brasileiros; use-o para comparar criativos, não como promessa. "
-        "Se confidence_flag for true, comunique a incerteza."
+        "padrão do canal, com intervalo de 80%, fatores que pesaram e criativos comparáveis. O número vem "
+        "de um modelo (LightGBM + CatBoost) treinado em ~27 mil Shorts brasileiros (04/2025 a 07/2026); "
+        "use-o para comparar criativos, não como promessa. Cite os números exatamente como devolvidos. "
+        "Se confidence_flag for true, diga isso antes do número, com os motivos de confidence_reasons. "
+        "O recurso modelo://card "
+        "traz as métricas e os limites do modelo."
     ),
 )
 
@@ -53,6 +56,23 @@ def ordenar_criativos(entradas: list[EntradaCriativo]) -> RankingCriativos:
     Dê um `id` a cada criativo para identificá-lo no ranking.
     """
     return agente.ordenar_criativos(entradas)
+
+
+@mcp.resource(
+    "modelo://card",
+    name="model_card",
+    mime_type="application/json",
+    description="Versão do modelo, dados de treino, calibração do intervalo, limiares do sinal de "
+    "baixa confiança e métricas (validação e, depois da avaliação final, teste).",
+)
+def model_card() -> str:
+    """O que a persona precisa saber antes de citar um número: de onde ele vem e quanto ele erra."""
+    caminho = previsao.caminho_padrao().with_suffix(".json")
+    card = json.loads(caminho.read_text())
+    teste = modelo.RESULTADOS / "teste_resumo.json"
+    if teste.exists():
+        card["avaliacao_teste"] = json.loads(teste.read_text()).get("principal")
+    return json.dumps(card, ensure_ascii=False, default=str)
 
 
 @mcp.tool()

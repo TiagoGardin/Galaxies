@@ -11,12 +11,15 @@ Grafo de um criativo (cada nó é uma tool da arquitetura do TAPI):
 Ranking (Tool 5): avaliar cada criativo com o grafo acima → ordenar → explicar_ranking.
 
 O número vem sempre do modelo treinado (previsao.py). O LLM aparece só no subagente que redige a
-explicação a partir dos fatos calculados, e é instruído a não criar números; se ele falhar ou não houver
-chave, a explicação é montada por um texto padrão com os mesmos fatos.
+explicação a partir de um JSON fechado de fatos (aula 5.7 da trilha): a saída é estruturada, um validador
+determinístico confere que todo número citado está no JSON e que todo fator citado está entre os fatores do
+modelo, e o LLM tem uma chance de corrigir. Se falhar de novo, ou se não houver chave, a explicação é um
+texto padrão montado só com os fatos (sempre fiel).
 """
 
 import json
 import os
+import re
 from datetime import datetime
 from typing import Any, TypedDict
 
@@ -24,6 +27,7 @@ import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 from langgraph.graph import END, START, StateGraph
+from pydantic import BaseModel, Field
 
 from galaxies_tool import canal, extracao, previsao
 from galaxies_tool.contrato import (
@@ -35,10 +39,9 @@ from galaxies_tool.contrato import (
 )
 
 # LLM do subagente explicador, em ordem de preferência (o 2º cobre sobrecarga do 1º). São modelos
-# diferentes do
-# VLM, então não gastam a cota diária dele (a cota do free tier é por modelo).
-MODELOS_LLM = os.environ.get("AGENTE_MODELO", "gemini-3.5-flash,gemini-flash-latest").split(",")
-SETORES_TREINO = ("moda", "beleza")
+# diferentes do VLM, então não gastam a cota diária dele (a cota do free tier é por modelo).
+MODELOS_LLM_PADRAO = "gemini-3.5-flash,gemini-flash-latest"
+NIVEL_INTERVALO_PCT = 80
 NOMES_FAIXA = {
     "abaixo": "abaixo da média do canal",
     "na_media": "na média do canal",
@@ -56,20 +59,23 @@ class Estado(TypedDict, total=False):
     comparaveis: list[dict]
     previsao: dict
     explicacao: str
+    explicacao_fonte: str
+    explicacao_problemas: list[str]
     saida: PrevisaoCriativo
 
 
 def no_extrair_atributos(estado: Estado) -> Estado:
-    """Tool 1: atributos do criativo (texto, imagem), com as mesmas funções do treino."""
+    """Tool 1: atributos do criativo (texto, imagem, vídeo e rubrica do VLM), com as funções do treino."""
     e = estado["entrada"]
-    return {"atributos": extracao.extrair_isolado(e.creative, e.caption, e.description, e.tags)}
+    return {
+        "atributos": extracao.extrair_isolado(e.creative, e.caption, e.description, e.tags, e.analisar_video)
+    }
 
 
 def no_historico_canal(estado: Estado) -> Estado:
     """Tool 2: bloco A (histórico do canal e tempo) e criativos comparáveis."""
     e, atr = estado["entrada"], estado["atributos"]
     planned = pd.Timestamp(e.planned_datetime).tz_convert("UTC")
-    avisos = list(atr.get("_avisos", []))
     if e.channel_id:
         if not canal.canal_conhecido(e.channel_id):
             raise ValueError(
@@ -86,15 +92,13 @@ def no_historico_canal(estado: Estado) -> Estado:
         raise ValueError(
             "o canal precisa de pelo menos 1 Short publicado 30 dias ou mais antes da data planejada"
         )
-    if e.sector not in SETORES_TREINO:
-        avisos.append(f"setor '{e.sector}' fora da base de treino (só moda e beleza)")
     contexto = {
         **hist,
         **canal.features_de_tempo(planned),
         "setor": e.sector,
         "tipo_canal": tipo,
         "categoria_id": categoria,
-        "_avisos": avisos,
+        "published_at": planned,
     }
     return {"contexto": contexto, "comparaveis": canal.comparaveis(atr, planned, e.sector, e.channel_id)}
 
@@ -107,18 +111,21 @@ def linha_do_modelo(atributos: dict, contexto: dict) -> dict:
 
 
 def no_prever(estado: Estado) -> Estado:
-    """Tool 3 (+ SHAP da Tool 4): previsão, intervalo de 80%, faixa e atribuição por atributo e bloco."""
-    p = previsao.prever_linha(linha_do_modelo(estado["atributos"], estado["contexto"]))
-    p["motivos_baixa_confianca"] += estado["contexto"]["_avisos"]
-    return {"previsao": p}
+    """Tool 3 (+ SHAP da Tool 4): previsão, intervalo de 80%, faixa, atribuição e sinal de confiança."""
+    linha = linha_do_modelo(estado["atributos"], estado["contexto"])
+    return {"previsao": previsao.prever_linha(linha, extracao_incompleta=estado["atributos"]["_faltando"])}
+
+
+# ---------------------------------------------------------------- Tool 4: explicador ancorado
 
 
 def fatos_para_explicar(estado: Estado) -> dict:
+    """O JSON fechado que o explicador recebe: tudo o que ele pode citar, e nada além disso."""
     p, e = estado["previsao"], estado["entrada"]
     return {
         "legenda": estado["atributos"].get("_titulo", ""),
         "curtidas_previstas": p["curtidas_previstas"],
-        "intervalo_80": [p["curtidas_baixo"], p["curtidas_alto"]],
+        "intervalo": {"nivel_pct": NIVEL_INTERVALO_PCT, "de": p["curtidas_baixo"], "ate": p["curtidas_alto"]},
         "mediana_do_canal": round(p["mediana_canal"]),
         "razao_vs_canal": p["razao_prevista"],
         "faixa": NOMES_FAIXA[p["faixa"]],
@@ -126,8 +133,7 @@ def fatos_para_explicar(estado: Estado) -> dict:
             {k: d[k] for k in ("descricao", "valor", "efeito", "impacto_pct")}
             for d in p["drivers"][: previsao.N_DRIVERS]
         ],
-        "efeito_por_bloco_pct": p["contribuicao_por_bloco"],
-        "baixa_confianca": p["motivos_baixa_confianca"],
+        "baixa_confianca": [m["texto"] for m in p["motivos_baixa_confianca"]],
         "comparaveis": [
             {k: c[k] for k in ("titulo", "curtidas", "desempenho_vs_canal")}
             for c in estado["comparaveis"][:3]
@@ -136,18 +142,118 @@ def fatos_para_explicar(estado: Estado) -> dict:
     }
 
 
+class FatorExplicado(BaseModel):
+    fator: str = Field(description="descrição EXATA de um item de 'fatores' do JSON")
+    efeito: str = Field(description="o efeito em linguagem de marketing, citando o impacto_pct do JSON")
+
+
+class Explicacao(BaseModel):
+    resumo: str = Field(description="2 ou 3 frases: curtidas previstas, intervalo e posição vs. o canal")
+    fatores: list[FatorExplicado] = Field(description="de 2 a 4 fatores, na ordem do JSON")
+    ressalvas: list[str] = Field(
+        description="baixa confiança (se houver) e limites; a 1ª é a baixa confiança"
+    )
+
+
 INSTRUCOES_EXPLICADOR = """Você é o subagente que explica a previsão de um modelo de machine learning
-para um time de marketing de moda e beleza. Você recebe os fatos já calculados (JSON) e escreve a
-justificativa.
-Regras:
-- Use SOMENTE os números e fatores do JSON. Nunca crie, recalcule ou arredonde para outro valor.
-- Comece pelo veredito: curtidas previstas, intervalo e a posição em relação à média do canal.
-- Explique os 2 a 4 fatores de maior impacto, dizendo se aumentam ou reduzem o resultado, em linguagem
-  de marketing ("o gancho visual...", "postar às 18h..."). Fatores de canal (patamar, tendência) são
-  contexto: diga que vêm do histórico, não do criativo.
-- Se houver motivos de baixa confiança, diga isso claramente em uma frase.
-- Se houver comparáveis, cite um como evidência.
-- 4 a 6 frases, português do Brasil, sem jargão (não use "SHAP", "log", "embedding", "PCA")."""
+para um time de marketing de moda e beleza. Você recebe os fatos já calculados (JSON) e preenche a
+explicação. Regras:
+1. Use SOMENTE fatos do JSON. Não invente causas, tendências, públicos nem números.
+2. Cite os números exatamente como estão no JSON (curtidas com ponto de milhar, ex.: 1.234).
+   Conversões permitidas: razao_vs_canal em vezes ou em porcentagem a mais/menos, e impacto_pct
+   arredondado para inteiro. Nenhuma outra conta.
+3. No resumo, cite curtidas_previstas, o intervalo (de e ate) e a posição em relação ao canal.
+4. Em `fatores`, use a descrição EXATA de 2 a 4 itens de "fatores", na mesma ordem. Fatores do canal
+   (patamar, tendência, instabilidade) são contexto do histórico, não do criativo: diga isso.
+5. Se "baixa_confianca" não estiver vazia, a primeira ressalva começa com "Baixa confiança:" e cita os
+   motivos. Se houver comparáveis, use um como evidência numa ressalva.
+6. Os fatores são associações aprendidas pelo modelo, não causas comprovadas.
+7. Português do Brasil, sem jargão (não use "SHAP", "log", "embedding", "PCA", "feature")."""
+
+_NUM = re.compile(r"\d+(?:[.,]\d+)*")
+
+
+def _para_float(txt: str) -> float:
+    """'4.380' → 4380; '1,33' → 1.33 (pt-BR); '1.5' → 1.5."""
+    if re.fullmatch(r"\d{1,3}(?:\.\d{3})+", txt):
+        return float(txt.replace(".", ""))
+    if "," in txt:
+        return float(txt.replace(".", "").replace(",", "."))
+    return float(txt)
+
+
+def numeros_permitidos(fatos) -> set[float]:
+    """Todo número do JSON (inclusive dentro de textos) e as conversões que as instruções autorizam."""
+    ok: set[float] = set()
+
+    def visitar(x):
+        if isinstance(x, bool):
+            return
+        if isinstance(x, (int, float)):
+            v = float(x)
+            ok.update({round(v, 2), round(abs(v), 2), float(round(v)), float(round(abs(v)))})
+            if 0 < v < 20:  # razão em vezes → % a mais/menos (1,23× = 23% a mais; 0,8× = 20% a menos)
+                ok.update({float(round(abs(v - 1) * 100)), round(abs(v - 1) * 100, 1), round(v * 100)})
+        elif isinstance(x, str):
+            ok.update(round(_para_float(n), 2) for n in _NUM.findall(x))
+        elif isinstance(x, dict):
+            for v in x.values():
+                visitar(v)
+        elif isinstance(x, list):
+            for v in x:
+                visitar(v)
+
+    visitar(fatos)
+    return ok
+
+
+def validar_explicacao(exp: dict, fatos: dict) -> list[str]:
+    """Checagem determinística de fidelidade (aula 5.7). Lista vazia = passou."""
+    problemas = []
+    texto = json.dumps(exp, ensure_ascii=False)
+    citados = {round(_para_float(n), 2) for n in _NUM.findall(texto)}
+    for n in sorted(citados - numeros_permitidos(fatos)):
+        problemas.append(f"número que não está no JSON: {n:g}")
+    nomes = {f["descricao"] for f in fatos["fatores"]}
+    for f in exp.get("fatores", []):
+        if f["fator"] not in nomes:
+            problemas.append(f"fator que não está no JSON: {f['fator']}")
+    for campo in ("de", "ate"):
+        if float(fatos["intervalo"][campo]) not in citados:
+            problemas.append(f"o intervalo não foi citado ({campo} = {fatos['intervalo'][campo]})")
+    if fatos["baixa_confianca"] and not (exp.get("ressalvas") or [""])[0].startswith("Baixa confiança"):
+        problemas.append("há motivos de baixa confiança, mas a 1ª ressalva não começa com 'Baixa confiança'")
+    return problemas
+
+
+def renderizar(exp: dict) -> str:
+    fatores = "; ".join(f"{f['fator'].lower()}: {f['efeito'].rstrip('.')}" for f in exp["fatores"])
+    partes = [exp["resumo"].strip(), f"Principais fatores: {fatores}." if fatores else "", *exp["ressalvas"]]
+    return " ".join(p.strip() for p in partes if p.strip())
+
+
+def _fmt(n) -> str:
+    return f"{n:,}".replace(",", ".")
+
+
+def explicacao_padrao(f: dict) -> str:
+    """Explicação sem LLM, só com os fatos (se o LLM falhar, reprovar duas vezes ou não houver chave)."""
+    i, razao = f["intervalo"], f"{f['razao_vs_canal']:.2f}".replace(".", ",")
+    texto = (
+        f"Previsão: {_fmt(f['curtidas_previstas'])} curtidas (intervalo de {i['nivel_pct']}%: "
+        f"{_fmt(i['de'])} a {_fmt(i['ate'])}), {razao}× a mediana recente do canal "
+        f"({_fmt(f['mediana_do_canal'])}), ou seja, {f['faixa']}. Principais fatores: "
+    )
+    texto += (
+        "; ".join(
+            f"{d['descricao'].lower()} = {d['valor']} ({d['efeito']} ~{abs(d['impacto_pct']):.0f}%)"
+            for d in f["fatores"][:4]
+        )
+        + "."
+    )
+    if f["baixa_confianca"]:
+        texto += " Baixa confiança: " + "; ".join(f["baixa_confianca"]) + "."
+    return texto + " Os fatores são associações aprendidas pelo modelo, não causas comprovadas."
 
 
 def _cliente_llm():
@@ -161,42 +267,20 @@ def _cliente_llm():
     return genai.Client(api_key=chave, http_options=types.HttpOptions(timeout=60_000))
 
 
-def explicacao_padrao(f: dict) -> str:
-    """Explicação sem LLM, com os mesmos fatos (usada se o LLM falhar ou não houver chave)."""
-
-    def fmt(n):
-        return f"{n:,}".replace(",", ".")
-
-    texto = (
-        f"Previsão: {fmt(f['curtidas_previstas'])} curtidas (intervalo de 80%: {fmt(f['intervalo_80'][0])} "
-        f"a {fmt(f['intervalo_80'][1])}), {f['razao_vs_canal']:.2f}× a mediana recente do canal "
-        f"({fmt(f['mediana_do_canal'])}), ou seja, {f['faixa']}. Principais fatores: "
-    )
-    texto += (
-        "; ".join(
-            f"{d['descricao'].lower()} = {d['valor']} ({d['efeito']} ~{abs(d['impacto_pct']):.0f}%)"
-            for d in f["fatores"][:4]
-        )
-        + "."
-    )
-    if f["baixa_confianca"]:
-        texto += " Baixa confiança: " + "; ".join(f["baixa_confianca"]) + "."
-    return texto
-
-
-def redigir(instrucoes: str, fatos: dict) -> str | None:
-    """Chama o LLM; devolve None em qualquer falha (a explicação padrão assume)."""
+def _chamar_llm(instrucoes: str, conteudo: str, esquema=None) -> str | None:
+    """Resposta do LLM (texto ou JSON do `esquema`), tentando os modelos em ordem; None se todos falharem."""
     cliente = _cliente_llm()
     if cliente is None:
         return None
     from google.genai import types
 
-    for modelo in MODELOS_LLM:
+    config = {"system_instruction": instrucoes, "temperature": 0.0}
+    if esquema is not None:
+        config.update(response_mime_type="application/json", response_schema=esquema)
+    for nome in os.environ.get("AGENTE_MODELO", MODELOS_LLM_PADRAO).split(","):  # lido depois do .env
         try:
             r = cliente.models.generate_content(
-                model=modelo.strip(),
-                contents=json.dumps(fatos, ensure_ascii=False, default=str),
-                config=types.GenerateContentConfig(system_instruction=instrucoes, temperature=0.2),
+                model=nome.strip(), contents=conteudo, config=types.GenerateContentConfig(**config)
             )
             if texto := (r.text or "").strip():
                 return texto
@@ -205,10 +289,36 @@ def redigir(instrucoes: str, fatos: dict) -> str | None:
     return None
 
 
+def redigir_explicacao(fatos: dict, tentativas: int = 2) -> tuple[str, str, list[str]]:
+    """(texto, fonte, problemas). Fonte: "llm" (aprovado pelo validador na 1ª tentativa), "llm_corrigido"
+    (aprovado na 2ª) ou "padrao" (texto montado sem LLM); `problemas` = o que o validador reprovou."""
+    conteudo = json.dumps(fatos, ensure_ascii=False, default=str)
+    todos = []
+    for t in range(tentativas):
+        bruto = _chamar_llm(INSTRUCOES_EXPLICADOR, conteudo, Explicacao)
+        if bruto is None:
+            todos.append("LLM indisponível (sem chave, cota ou rede)")
+            break
+        try:
+            exp = Explicacao.model_validate_json(bruto).model_dump()
+        except Exception:  # noqa: BLE001 — JSON fora do esquema: conta como tentativa reprovada
+            todos.append("resposta fora do esquema")
+            continue
+        problemas = validar_explicacao(exp, fatos)
+        if not problemas:
+            return renderizar(exp), ("llm" if t == 0 else "llm_corrigido"), todos
+        todos += problemas
+        conteudo = (
+            f"{json.dumps(fatos, ensure_ascii=False, default=str)}\n\nSua resposta anterior:\n{bruto}"
+            f"\n\nCorrija estes problemas e responda de novo: {'; '.join(problemas)}"
+        )
+    return explicacao_padrao(fatos), "padrao", todos
+
+
 def no_explicar(estado: Estado) -> Estado:
     """Tool 4 (subagente): transforma fatores e números em justificativa em linguagem natural."""
-    f = fatos_para_explicar(estado)
-    return {"explicacao": redigir(INSTRUCOES_EXPLICADOR, f) or explicacao_padrao(f)}
+    texto, fonte, problemas = redigir_explicacao(fatos_para_explicar(estado))
+    return {"explicacao": texto, "explicacao_fonte": fonte, "explicacao_problemas": problemas}
 
 
 def _valor_simples(v):
@@ -216,6 +326,8 @@ def _valor_simples(v):
         v = v.item()
     if isinstance(v, float) and np.isnan(v):
         return None
+    if isinstance(v, pd.Timestamp):
+        return v.tz_convert(FUSO).isoformat(timespec="minutes")
     return v if isinstance(v, (int, float, str, bool)) or v is None else str(v)
 
 
@@ -224,9 +336,12 @@ def no_montar_saida(estado: Estado) -> Estado:
     inspecao = {
         k: _valor_simples(v)
         for k, v in linha_do_modelo(estado["atributos"], estado["contexto"]).items()
-        if not k.startswith(("embtxt_", "embimg_"))
+        if not k.startswith(("embtxt_", "embimg_", "embgancho_"))
     }
     inspecao["tipo_criativo"] = estado["atributos"]["_tipo"]
+    inspecao["partes_nao_analisadas"] = ", ".join(estado["atributos"]["_faltando"]) or None
+    inspecao["explicacao_fonte"] = estado["explicacao_fonte"]
+    inspecao["explicacao_reprovacoes"] = "; ".join(estado["explicacao_problemas"]) or None
     saida = PrevisaoCriativo(
         id=e.id,
         predicted_metric=p["curtidas_previstas"],
@@ -285,6 +400,22 @@ def no_avaliar_todos(estado: EstadoRanking) -> EstadoRanking:
     return {"previsoes": [GRAFO.invoke({"entrada": e})["saida"] for e in estado["entradas"]]}
 
 
+Z_80 = 1.2816  # quantil 0,9 da normal padrão: o intervalo de 80% tem ±1,2816 desvios
+
+
+def prob_superar(a: PrevisaoCriativo, b: PrevisaoCriativo) -> float:
+    """P(a rende mais que b), com cada previsão vista como normal em log1p(curtidas): centro na previsão e
+    desvio = largura do intervalo de 80% / (2 × 1,2816). Supõe erros independentes (conservador)."""
+    from scipy.stats import norm
+
+    def centro_e_desvio(p):
+        lo, hi = np.log1p(p.interval_low), np.log1p(p.interval_high)
+        return np.log1p(p.predicted_metric), max((hi - lo) / (2 * Z_80), 1e-6)
+
+    (ma, sa), (mb, sb) = centro_e_desvio(a), centro_e_desvio(b)
+    return round(float(norm.cdf((ma - mb) / np.hypot(sa, sb))), 2)
+
+
 def no_ordenar(estado: EstadoRanking) -> EstadoRanking:
     """Ordena pelas curtidas previstas. Para criativos do mesmo canal e mesma época, é o mesmo que ordenar
     pelo desempenho relativo, que é o que o modelo prevê."""
@@ -300,6 +431,7 @@ def no_ordenar(estado: EstadoRanking) -> EstadoRanking:
                 razao_prevista=p.relative_to_channel.razao_prevista,
                 faixa=p.relative_to_channel.faixa,
                 confidence_flag=p.confidence_flag,
+                prob_superar_seguinte=prob_superar(p, ordem[i]) if i < len(ordem) else None,
             )
             for i, p in enumerate(ordem, 1)
         ]
@@ -307,36 +439,56 @@ def no_ordenar(estado: EstadoRanking) -> EstadoRanking:
 
 
 INSTRUCOES_RANKING = """Você explica a um time de marketing o ranking de criativos feito por um modelo
-de machine learning. Use SOMENTE os números e fatores do JSON. Em 3 a 5 frases, em português do Brasil:
-diga qual criativo deve render mais e por quanto em relação aos outros; aponte os fatores que mais
-separam o primeiro dos demais; se os intervalos se sobrepõem muito, diga que a diferença é incerta.
-Sem jargão técnico."""
+de machine learning. Use SOMENTE os números e fatores do JSON, sem fazer contas. Em 3 a 5 frases, em
+português do Brasil: diga qual criativo deve render mais, citando as curtidas previstas e os intervalos;
+aponte os fatores que mais separam o primeiro dos demais; se os intervalos se sobrepõem, diga que a
+diferença é incerta; se algum criativo tem baixa confiança, diga isso. Sem jargão técnico."""
+
+
+def ranking_padrao(r: list[ItemRanking]) -> str:
+    texto = " > ".join(f"{x.id} ({_fmt(x.predicted_metric)} curtidas)" for x in r) + "."
+    if len(r) > 1:
+        texto += (
+            f" Chance de {r[0].id} render mais que {r[1].id}: {round(r[0].prob_superar_seguinte * 100)}%."
+        )
+        if r[1].interval_high >= r[0].interval_low:
+            texto += " Os intervalos se sobrepõem: a diferença entre os primeiros é incerta."
+    if baixa := [x.id for x in r if x.confidence_flag]:
+        texto += f" Baixa confiança em: {', '.join(baixa)}."
+    return texto
 
 
 def no_explicar_ranking(estado: EstadoRanking) -> EstadoRanking:
     por_id = {p.id: p for p in estado["previsoes"]}
-    fatos = [
-        {
-            "posicao": r.posicao,
-            "id": r.id,
-            "curtidas_previstas": r.predicted_metric,
-            "intervalo_80": [r.interval_low, r.interval_high],
-            "razao_vs_canal": r.razao_prevista,
-            "baixa_confianca": r.confidence_flag,
-            "fatores": [
-                {"descricao": d.descricao, "valor": d.valor, "efeito": d.efeito, "impacto_pct": d.impacto_pct}
-                for d in por_id[r.id].top_drivers[:4]
-            ],
-        }
-        for r in estado["ranking"]
-    ]
-    texto = redigir(INSTRUCOES_RANKING, {"ranking": fatos})
-    if not texto:
-        r = estado["ranking"]
-        texto = " > ".join(f"{x.id} ({x.predicted_metric:,} curtidas)".replace(",", ".") for x in r) + "."
-        if len(r) > 1 and r[1].interval_high >= r[0].interval_low:
-            texto += " Os intervalos se sobrepõem: a diferença entre os primeiros é incerta."
-    return {"explicacao": texto}
+    fatos = {
+        "ranking": [
+            {
+                "posicao": r.posicao,
+                "id": r.id,
+                "curtidas_previstas": r.predicted_metric,
+                "intervalo_80": [r.interval_low, r.interval_high],
+                "razao_vs_canal": r.razao_prevista,
+                "chance_de_superar_o_seguinte": r.prob_superar_seguinte,
+                "baixa_confianca": [m.texto for m in por_id[r.id].confidence_reasons],
+                "fatores": [
+                    {
+                        "descricao": d.descricao,
+                        "valor": d.valor,
+                        "efeito": d.efeito,
+                        "impacto_pct": d.impacto_pct,
+                    }
+                    for d in por_id[r.id].top_drivers[:4]
+                ],
+            }
+            for r in estado["ranking"]
+        ]
+    }
+    texto = _chamar_llm(INSTRUCOES_RANKING, json.dumps(fatos, ensure_ascii=False))
+    if texto:
+        citados = {round(_para_float(n), 2) for n in _NUM.findall(texto)}
+        if citados - numeros_permitidos(fatos):  # número inventado: o texto padrão assume
+            texto = None
+    return {"explicacao": texto or ranking_padrao(estado["ranking"])}
 
 
 def construir_grafo_ranking():
@@ -396,6 +548,7 @@ def what_if_horarios(entrada: EntradaCriativo | dict[str, Any], horarios: list[d
                 "interval_low": p["curtidas_baixo"],
                 "interval_high": p["curtidas_alto"],
                 "razao_prevista": p["razao_prevista"],
+                "confidence_flag": bool(p["motivos_baixa_confianca"]),
             }
         )
     return saida

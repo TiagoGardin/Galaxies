@@ -1,10 +1,11 @@
-"""Tools 3 e 4 do agente: previsão (LightGBM + intervalo de 80%) e explicabilidade (SHAP).
+"""Tools 3 e 4 do agente: previsão (LightGBM + intervalo de 80% calibrado) e explicabilidade (SHAP).
 
 O número sai sempre do modelo treinado; o LLM só redige a explicação a partir do que está aqui.
 
-SHAP: valores de TreeSHAP exatos calculados pelo próprio LightGBM (`pred_contrib=True`), na escala do alvo
+SHAP: o ponto é a média de LightGBM e CatBoost, e o SHAP é a média dos TreeSHAP exatos de cada um
+(`pred_contrib=True` e `ShapValues`), aditivo como os dois, na escala do alvo
 (log da razão curtidas / mediana do canal). Um SHAP de +0,10 significa ~10,5% mais curtidas (exp(0,10)).
-Os 16 componentes de cada embedding são somados num único driver, porque isolados não têm significado.
+Os componentes de cada embedding são somados num único driver, porque isolados não têm significado.
 """
 
 import os
@@ -15,8 +16,8 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from galaxies_tool import modelo
-from galaxies_tool.artefato import preparar
+from galaxies_tool import modelo, multimodal
+from galaxies_tool.artefato import contribuicoes, distancia_ood, motivos, preparar
 from galaxies_tool.artefato import prever as prever_artefato
 from galaxies_tool.metricas import faixa
 
@@ -53,37 +54,62 @@ DESCRICOES = {
     "n_mencoes": "Menções (@) na descrição",
     "tem_link": "Link na descrição",
     "tem_cta": "Chamada para ação (comenta, salva, link na bio...)",
-    "fmt_grwm": "Formato arrume-se comigo (GRWM)",
-    "fmt_tutorial": "Formato tutorial/dica",
-    "fmt_haul": "Formato haul/recebidos",
-    "fmt_review": "Formato resenha/review",
-    "fmt_provador": "Formato provador/look do dia",
-    "fmt_antes_depois": "Formato antes e depois",
-    "fmt_trend": "Formato trend/desafio",
-    "thumb_brilho": "Brilho da imagem",
-    "thumb_contraste": "Contraste da imagem",
-    "thumb_saturacao": "Saturação da imagem",
-    "thumb_colorfulness": "Intensidade de cor da imagem",
-    "thumb_n_rostos": "Rostos na imagem",
-    "thumb_tem_rosto": "Rosto na imagem",
-    "thumb_area_rosto": "Tamanho do rosto na imagem (close-up)",
-    "thumb_tem_texto": "Texto escrito na imagem",
-    "thumb_n_palavras_ocr": "Palavras escritas na imagem",
-    "emb_texto": "Tema e estilo da legenda (embedding de texto)",
-    "emb_thumb": "Estilo visual da imagem (embedding SigLIP)",
+    "fmt_grwm": "Formato arrume-se comigo (GRWM) declarado no texto",
+    "fmt_tutorial": "Formato tutorial/dica declarado no texto",
+    "fmt_haul": "Formato haul/recebidos declarado no texto",
+    "fmt_review": "Formato resenha/review declarado no texto",
+    "fmt_provador": "Formato provador/look do dia declarado no texto",
+    "fmt_antes_depois": "Formato antes e depois declarado no texto",
+    "fmt_trend": "Formato trend/desafio declarado no texto",
+    "thumb_brilho": "Brilho da imagem de capa",
+    "thumb_contraste": "Contraste da imagem de capa",
+    "thumb_saturacao": "Saturação da imagem de capa",
+    "thumb_colorfulness": "Intensidade de cor da imagem de capa",
+    "thumb_n_rostos": "Rostos na imagem de capa",
+    "thumb_tem_rosto": "Rosto na imagem de capa",
+    "thumb_area_rosto": "Tamanho do rosto na capa (close-up)",
+    "thumb_tem_texto": "Texto escrito na imagem de capa",
+    "thumb_n_palavras_ocr": "Palavras escritas na imagem de capa",
+    "emb_texto": "Tema e estilo da legenda",
+    "emb_thumb": "Estilo visual da imagem de capa",
+    "emb_gancho": "Visual dos primeiros 3 segundos (gancho)",
+    "cortes_por_segundo": "Ritmo de cortes de cena",
+    "movimento_medio": "Movimento da imagem",
+    "tem_voz": "Voz no áudio (fala ou canto)",
+    "voz_por_segundo": "Densidade de fala",
+    "energia_rms": "Energia (volume) do áudio",
+    "vlm_tem_rosto": "Rosto no vídeo",
+    "vlm_close_up_produto": "Close-up de produto",
+    "vlm_before_after_ou_transformacao": "Antes/depois ou transformação",
+    "vlm_try_on_ou_demonstracao": "Prova de roupa ou demonstração de uso",
+    "vlm_swatch": "Swatch (amostra de cor/textura)",
+    "vlm_aplicacao_na_pele": "Aplicação de produto na pele/cabelo/unhas",
+    "vlm_texto_na_tela": "Texto na tela durante o vídeo",
+    "vlm_tem_musica_de_fundo": "Música de fundo",
+    "vlm_forca_hook_0a10": "Força do gancho nos 3 primeiros segundos (nota 0–10)",
+    "vlm_densidade_texto_0a10": "Quantidade de texto na tela (nota 0–10)",
+    "vlm_ritmo_cortes_0a10": "Ritmo de edição percebido (nota 0–10)",
+    "vlm_estetica_geral_0a10": "Qualidade estética e de produção (nota 0–10)",
+    "vlm_clareza_beneficio_produto_0a10": "Clareza do benefício do produto (nota 0–10)",
+    "vlm_corpo_inteiro_vs_detalhe": "Look de corpo inteiro ou detalhe",
+    "vlm_audio_original_ou_musica": "Tipo de áudio predominante",
+    "vlm_tom_narracao": "Tom da narração",
+    "vlm_formato": "Formato real do vídeo",
 }
 BLOCOS = {
     "A (canal e contexto)": set(modelo.BLOCO_A),
     "B (texto)": set(modelo.BLOCO_B_MANUAL) | {"emb_texto"},
-    "C (visual e áudio)": set(modelo.BLOCO_C_THUMB) | {"emb_thumb"},
+    "C (imagem de capa)": set(modelo.BLOCO_C_THUMB) | {"emb_thumb"},
+    "C (vídeo e áudio)": set(modelo.BLOCO_C_VIDEO) | {"emb_gancho"},
+    "D (VLM)": set(modelo.BLOCO_D),
 }
+BINARIAS = set(multimodal.COLUNAS_VLM_BINARIAS) | {"tem_voz"}
 
 
 def caminho_padrao() -> Path:
     if env := os.environ.get("GALAXIES_MODELO"):
         return Path(env)
-    final = PASTA / "lgbm_final.joblib"
-    return final if final.exists() else PASTA / "lgbm_dev.joblib"
+    return PASTA / "lgbm_final.joblib"
 
 
 @lru_cache(maxsize=4)
@@ -97,7 +123,7 @@ def grupo(coluna: str) -> str:
 
 
 def bloco(g: str) -> str:
-    return next((b for b, cols in BLOCOS.items() if g in cols), "D (VLM)")
+    return next(b for b, cols in BLOCOS.items() if g in cols)
 
 
 def formatar(g: str, valor) -> str:
@@ -105,7 +131,7 @@ def formatar(g: str, valor) -> str:
         return "—"
     if valor is None or (isinstance(valor, float) and np.isnan(valor)):
         return "ausente"
-    if isinstance(valor, (bool, np.bool_)):
+    if isinstance(valor, (bool, np.bool_)) or g in BINARIAS:
         return "sim" if valor else "não"
     if g == "dia_semana":
         return DIAS[int(valor)]
@@ -115,55 +141,49 @@ def formatar(g: str, valor) -> str:
         return f"{np.expm1(valor):,.0f} curtidas (mediana)".replace(",", ".")
     if g == "duracao_s":
         return f"{valor:.0f} s"
+    if g.endswith("_0a10"):
+        return f"{valor:.0f}"
     if isinstance(valor, float):
-        return f"{valor:.2f}"
-    return str(valor)
+        return f"{valor:.2f}".replace(".", ",")
+    return str(valor).replace("_", " ")
 
 
-def prever_linha(linha: dict, art: dict | None = None) -> dict:
-    """Previsão, intervalo, faixa, SHAP agregado e sinal de confiança para um criativo (uma linha)."""
+def prever_linha(linha: dict, art: dict | None = None, extracao_incompleta: list[str] | None = None) -> dict:
+    """Previsão, intervalo, faixa, SHAP agregado e sinal de confiança para um criativo (uma linha).
+
+    `extracao_incompleta`: partes do criativo que não puderam ser analisadas (vira um motivo do flag)."""
     art = art or carregar_artefato()
-    df = pd.DataFrame([linha])
     gerados = {n for p in art["pcas"].values() for n in p["nomes"]}
     brutos = [c for p in art["pcas"].values() for c in p["colunas"]]
-    for c in [*art["colunas"], *brutos]:  # atributo ausente (ex.: criativo só texto, sem imagem) = NaN
-        if c not in df.columns and c not in gerados:
-            df[c] = np.nan
+    # atributo ausente (ex.: criativo só texto, sem imagem) = NaN; todas as colunas de uma vez
+    faltam = [c for c in dict.fromkeys([*art["colunas"], *brutos]) if c not in linha and c not in gerados]
+    df = pd.DataFrame([{**linha, **dict.fromkeys(faltam, np.nan)}])
     for c in df.columns:  # None (ex.: duração de criativo só texto) vira NaN numérico
-        if df[c].dtype == object and c not in art["categorias"]:
+        if df[c].dtype == object and c not in art["categorias"] and c != "published_at":
             df[c] = pd.to_numeric(df[c], errors="coerce")
     x = preparar(df, art)
     p = prever_artefato(art, x).iloc[0]
     log_mediana = float(linha["log_mediana_likes_ult20"])
 
-    contrib = art["ponto"].predict(x, pred_contrib=True)[0]
+    contrib = contribuicoes(art, x)[0]
+    # aditividade do TreeSHAP: valor base + soma das contribuições = previsão (aula 5.6)
+    assert abs(contrib.sum() - p.alvo_previsto) < 1e-6, "SHAP não fecha com a previsão"
     shap = pd.Series(contrib[:-1], index=art["colunas"]).groupby(grupo).sum()
-    valores = {g: (linha.get(g) if not g.startswith("emb_") else None) for g in shap.index}
     drivers = [
         {
             "atributo": g,
             "descricao": DESCRICOES.get(g, g),
-            "valor": formatar(g, valores[g]),
+            "valor": formatar(g, None if g.startswith("emb_") else linha.get(g)),
             "efeito": "aumenta" if v > 0 else "reduz",
             "impacto_pct": round(float(np.expm1(v) * 100), 1),
             "bloco": bloco(g),
         }
         for g, v in shap.reindex(shap.abs().sort_values(ascending=False).index).items()
+        if abs(v) > 0
     ]
     por_bloco = shap.groupby(bloco).sum()
-
-    largura = p.alvo_alto - p.alvo_baixo
-    lim = art["limiares"]
-    motivos = []
-    n_hist = linha.get("n_historico_total", linha.get("n_shorts_anteriores", 0))
-    if n_hist < lim["min_historico"]:
-        motivos.append(
-            f"canal com só {n_hist} Shorts maduros no histórico (mínimo confiável: {lim['min_historico']})"
-        )
-    if linha.get("std_log_likes_ult20", 0) > lim["std_instavel"]:
-        motivos.append("curtidas recentes do canal muito instáveis (entre os 10% mais instáveis da base)")
-    if largura > lim["largura_larga"]:
-        motivos.append("intervalo de previsão largo (entre os 10% mais largos)")
+    largura = float(p.alvo_alto - p.alvo_baixo)
+    razoes = motivos(art, linha, largura, float(distancia_ood(art, x)[0]), extracao_incompleta or [])
     return {
         "alvo_previsto": float(p.alvo_previsto),
         "alvo_baixo": float(p.alvo_baixo),
@@ -176,6 +196,6 @@ def prever_linha(linha: dict, art: dict | None = None) -> dict:
         "faixa": str(faixa(np.array([p.alvo_previsto]))[0]),
         "drivers": drivers,
         "contribuicao_por_bloco": {b: round(float(np.expm1(v) * 100), 1) for b, v in por_bloco.items()},
-        "motivos_baixa_confianca": motivos,
+        "motivos_baixa_confianca": razoes,
         "modelo_versao": art["versao"],
     }
