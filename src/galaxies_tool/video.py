@@ -94,19 +94,30 @@ def audio(arquivo: Path, pasta: Path) -> dict:
             "duracao_audio_s": duracao}
 
 
+def medir(arquivo: Path, chave: str, pasta: Path) -> dict:
+    """Medidas de um vídeo já em disco; os quadros do gancho vão para PASTA_GANCHO/<chave>_<k>.jpg.
+    Usada no treino (vídeo baixado) e pelo agente (vídeo baixado ou arquivo local do cliente)."""
+    PASTA_GANCHO.mkdir(parents=True, exist_ok=True)
+    cap = cv2.VideoCapture(str(arquivo))
+    duracao = cap.get(cv2.CAP_PROP_FRAME_COUNT) / (cap.get(cv2.CAP_PROP_FPS) or 30)
+    largura, altura = cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
+    cap.release()
+    movimento, n_gancho = movimento_e_gancho(arquivo, chave)
+    return {"video_id": chave, "duracao_video_s": duracao, "largura": largura, "altura": altura,
+            "vertical": altura > largura, "cortes_por_segundo": cortes_por_segundo(arquivo, duracao),
+            "movimento_medio": movimento, "n_quadros_gancho": n_gancho, **audio(arquivo, pasta)}
+
+
 def processar(video_id: str) -> dict:
     with tempfile.TemporaryDirectory() as tmp:  # vídeo e áudio somem ao sair do bloco
         pasta = Path(tmp)
-        arquivo = baixar(video_id, pasta)
-        cap = cv2.VideoCapture(str(arquivo))
-        duracao = cap.get(cv2.CAP_PROP_FRAME_COUNT) / (cap.get(cv2.CAP_PROP_FPS) or 30)
-        largura, altura = cap.get(cv2.CAP_PROP_FRAME_WIDTH), cap.get(cv2.CAP_PROP_FRAME_HEIGHT)
-        cap.release()
-        movimento, n_gancho = movimento_e_gancho(arquivo, video_id)
-        return {"video_id": video_id, "duracao_video_s": duracao, "largura": largura, "altura": altura,
-                "vertical": altura > largura, "cortes_por_segundo": cortes_por_segundo(arquivo, duracao),
-                "movimento_medio": movimento, "n_quadros_gancho": n_gancho, **audio(arquivo, pasta)}
+        return medir(baixar(video_id, pasta), video_id, pasta)
 
+
+def quadros_do_gancho(chave: str) -> list:
+    from PIL import Image
+    return [Image.open(PASTA_GANCHO / f"{chave}_{k}.jpg").convert("RGB") for k in range(len(INSTANTES_GANCHO))
+            if (PASTA_GANCHO / f"{chave}_{k}.jpg").exists()]
 
 def detalhe_do_erro(e: Exception) -> str:
     return (getattr(e, "stderr", None) or str(e)).strip()  # mensagem do yt-dlp/ffmpeg, se houver

@@ -12,6 +12,9 @@ mlruns/
 mlartifacts/
 models/*
 !models/.gitkeep
+# o artefato final é versionado: o agente e o servidor MCP rodam sem retreinar (11 MB)
+!models/lgbm_final.joblib
+!models/lgbm_final.json
 
 # Python
 __pycache__/
@@ -29,6 +32,8 @@ venv/
 
 # Embeddings e artefatos derivados grandes (regeneráveis)
 data/features/*.npy
+# exceção: o embedding do gancho depende dos quadros do vídeo (~20 h de download para refazer)
+!data/features/emb_gancho.npy
 mlflow.db
 data/features/*_log.txt
 

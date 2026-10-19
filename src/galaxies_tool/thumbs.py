@@ -5,6 +5,7 @@ Uso:
   uv run python -m galaxies_tool.thumbs estatisticas # cor, brilho, rosto → data/features/thumbs_cv.parquet
   uv run python -m galaxies_tool.thumbs ocr          # texto na thumbnail → data/features/thumbs_ocr.parquet
   uv run python -m galaxies_tool.thumbs siglip       # embeddings SigLIP 2 → data/features/emb_thumb.npy
+  uv run python -m galaxies_tool.thumbs siglip_gancho  # SigLIP 2 dos quadros do gancho (video.py) → emb_gancho.npy
 
 A thumbnail de um Short vem como 16:9 (1280x720) com o quadro vertical no centro e as laterais preenchidas
 por uma cópia ampliada e escurecida. Todas as medidas usam só o quadro central 9:16 (`recortar_quadro`).
@@ -30,6 +31,7 @@ PASTA = Path("data/media/thumbs")
 SAIDA_CV = Path("data/features/thumbs_cv.parquet")
 SAIDA_OCR = Path("data/features/thumbs_ocr.parquet")
 SAIDA_EMB = Path("data/features/emb_thumb.npy")
+SAIDA_EMB_GANCHO = Path("data/features/emb_gancho.npy")
 MODELO_ROSTO = Path("data/media/modelos/blaze_face_short_range.tflite")
 URL_MODELO_ROSTO = ("https://storage.googleapis.com/mediapipe-models/face_detector/"
                     "blaze_face_short_range/float16/latest/blaze_face_short_range.tflite")
@@ -155,27 +157,58 @@ def ocr():
 # ---------------------------------------------------------------- SigLIP 2
 
 
-def siglip():
+def carregar_siglip():
     import torch
     from transformers import AutoModel, AutoProcessor
     disp = "mps" if torch.backends.mps.is_available() else "cpu"
-    modelo = AutoModel.from_pretrained(MODELO_SIGLIP).to(disp).eval()
-    proc = AutoProcessor.from_pretrained(MODELO_SIGLIP)
+    return AutoModel.from_pretrained(MODELO_SIGLIP).to(disp).eval(), AutoProcessor.from_pretrained(MODELO_SIGLIP), disp
+
+
+def embeddings_siglip(siglip, imagens: list[Image.Image]) -> np.ndarray:
+    """Embeddings SigLIP 2 normalizados (norma 1), em float16 como no cache do treino."""
+    import torch
+    modelo, proc, disp = siglip
+    with torch.no_grad():
+        e = modelo.get_image_features(**proc(images=imagens, return_tensors="pt").to(disp))
+        e = getattr(e, "pooler_output", e)
+        return torch.nn.functional.normalize(e, dim=-1).cpu().numpy().astype(np.float16)
+
+
+def media_normalizada(embs: np.ndarray) -> np.ndarray:
+    """Média dos embeddings dos quadros do gancho, renormalizada (mesma escala do embedding de um quadro)."""
+    m = embs.astype(np.float32).mean(axis=0)
+    return (m / np.linalg.norm(m)).astype(np.float16)
+
+
+def siglip():
+    modelo = carregar_siglip()
     ids = [v for v in ids_alvo() if (PASTA / f"{v}.jpg").exists()]
     embs = []
-    with torch.no_grad():
-        for i in range(0, len(ids), 64):
-            imgs = [Image.open(PASTA / f"{v}.jpg").convert("RGB") for v in ids[i:i + 64]]
-            x = proc(images=imgs, return_tensors="pt").to(disp)
-            e = modelo.get_image_features(**x)
-            e = getattr(e, "pooler_output", e)
-            embs.append(torch.nn.functional.normalize(e, dim=-1).cpu().numpy().astype(np.float16))
-            if (i // 64) % 50 == 0:
-                print(f"{i}/{len(ids)}", flush=True)
+    for i in range(0, len(ids), 64):
+        embs.append(embeddings_siglip(modelo, [Image.open(PASTA / f"{v}.jpg").convert("RGB")
+                                               for v in ids[i:i + 64]]))
+        if (i // 64) % 50 == 0:
+            print(f"{i}/{len(ids)}", flush=True)
     np.save(SAIDA_EMB, np.concatenate(embs))
     SAIDA_EMB.with_name("emb_thumb_ids.txt").write_text("\n".join(ids))
     print(f"{len(ids)} embeddings → {SAIDA_EMB}")
 
 
+def siglip_gancho():
+    """Embedding do gancho: média dos quadros de 0,5 s, 1,5 s e 2,5 s salvos por video.py (bloco C)."""
+    from galaxies_tool.video import PASTA_GANCHO, quadros_do_gancho
+    modelo = carregar_siglip()
+    ids = sorted({a.name.rsplit("_", 1)[0] for a in PASTA_GANCHO.glob("*.jpg")})
+    embs = []
+    for i, vid in enumerate(ids):
+        embs.append(media_normalizada(embeddings_siglip(modelo, quadros_do_gancho(vid))))
+        if i % 1000 == 0:
+            print(f"{i}/{len(ids)}", flush=True)
+    np.save(SAIDA_EMB_GANCHO, np.stack(embs))
+    SAIDA_EMB_GANCHO.with_name("emb_gancho_ids.txt").write_text("\n".join(ids))
+    print(f"{len(ids)} embeddings → {SAIDA_EMB_GANCHO}")
+
+
 if __name__ == "__main__":
-    {"baixar": baixar, "estatisticas": estatisticas, "ocr": ocr, "siglip": siglip}[sys.argv[1]]()
+    {"baixar": baixar, "estatisticas": estatisticas, "ocr": ocr, "siglip": siglip,
+     "siglip_gancho": siglip_gancho}[sys.argv[1]]()

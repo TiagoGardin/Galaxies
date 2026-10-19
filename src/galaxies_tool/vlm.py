@@ -122,19 +122,46 @@ def tirar_indisponiveis(fila: list[str], pasta: Path) -> list[str]:
     return [v for v in fila if v not in removidos]
 
 
-def analisar(cliente: genai.Client, video_id: str, modelo: str = MODELO) -> dict:
-    url = f"https://www.youtube.com/shorts/{video_id}"
+def _rubrica(cliente: genai.Client, video: types.FileData, chave: str, modelo: str) -> dict:
     resp = cliente.models.generate_content(
         model=modelo,
-        contents=types.Content(parts=[types.Part(file_data=types.FileData(file_uri=url)),
-                                      types.Part(text=PROMPT)]),
+        contents=types.Content(parts=[types.Part(file_data=video), types.Part(text=PROMPT)]),
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Rubrica,
                                            temperature=0.0),
     )
     rubrica = Rubrica.model_validate_json(resp.text)
     uso = resp.usage_metadata
-    return {"video_id": video_id, "modelo": modelo, "rubrica": rubrica.model_dump(mode="json"),
+    return {"video_id": chave, "modelo": modelo, "rubrica": rubrica.model_dump(mode="json"),
             "tokens_entrada": uso.prompt_token_count, "tokens_saida": uso.candidates_token_count}
+
+
+def analisar(cliente: genai.Client, video_id: str, modelo: str = MODELO) -> dict:
+    """Rubrica de um Short público, pela URL (o Gemini busca o vídeo no YouTube)."""
+    url = f"https://www.youtube.com/shorts/{video_id}"
+    return _rubrica(cliente, types.FileData(file_uri=url), video_id, modelo)
+
+
+def analisar_arquivo(cliente: genai.Client, caminho: str, chave: str, modelo: str = MODELO,
+                     espera_max_s: int = 300) -> dict:
+    """Rubrica de um vídeo local (criativo ainda não publicado): envia pela Files API, espera o
+    processamento e usa o MESMO prompt e esquema. O arquivo é apagado do Gemini no fim."""
+    arquivo = cliente.files.upload(file=caminho)
+    try:
+        inicio = time.time()
+        while arquivo.state == types.FileState.PROCESSING and time.time() - inicio < espera_max_s:
+            time.sleep(3)
+            arquivo = cliente.files.get(name=arquivo.name)
+        if arquivo.state != types.FileState.ACTIVE:
+            raise RuntimeError(f"o Gemini não processou o vídeo (estado {arquivo.state})")
+        return _rubrica(cliente, types.FileData(file_uri=arquivo.uri, mime_type=arquivo.mime_type), chave, modelo)
+    finally:
+        cliente.files.delete(name=arquivo.name)
+
+
+def cliente_gemini() -> genai.Client:
+    load_dotenv(".env")
+    # tempo limite por requisição: após suspensão do computador, conexões mortas travariam para sempre
+    return genai.Client(api_key=os.environ["GEMINI_API_KEY"], http_options=types.HttpOptions(timeout=TEMPO_LIMITE_MS))
 
 
 def processar_um(cliente: genai.Client, vid: str, modelo: str = MODELO) -> str:
@@ -176,10 +203,7 @@ def main():
     ap.add_argument("--paralelo", type=int, default=3)
     ap.add_argument("--modelo", default=MODELO)
     args = ap.parse_args()
-    load_dotenv(".env")
-    # tempo limite por requisição: após suspensão do computador, conexões mortas travariam para sempre
-    cliente = genai.Client(api_key=os.environ["GEMINI_API_KEY"],
-                           http_options=types.HttpOptions(timeout=TEMPO_LIMITE_MS))
+    cliente = cliente_gemini()
     pasta = pasta_do_modelo(args.modelo)
     pasta.mkdir(parents=True, exist_ok=True)
     fila = [v for v in AMOSTRA.read_text().split()
