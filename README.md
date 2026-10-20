@@ -139,7 +139,7 @@ print(r.predicted_metric, r.interval_low, r.interval_high, r.confidence_flag, r.
 | Transcrição | faster-whisper 1.2 (`small`, int8, VAD) | Gratuito e local |
 | Detectores | MediaPipe 1.1 (rosto), EasyOCR 1.7 (texto), PySceneDetect 0.7 (cortes), OpenCV (cor e movimento) | Gratuitos, locais |
 | VLM | `gemini-3.1-flash-lite` (google-genai 2.30), temperatura 0, saída estruturada | Aceita a URL do YouTube; o 3.5 vivia sobrecarregado |
-| Explicabilidade | TreeSHAP exato dos dois modelos (média) + subagente explicador (`gemini-3.5-flash`) com validador | Atribuição exata e explicação conferível |
+| Explicabilidade | TreeSHAP exato dos dois modelos (média) + subagente explicador (`gemini-3.5-flash`, reserva `gemini-3.1-flash-lite`) com validador | Atribuição exata e explicação conferível |
 | Agente | LangGraph 1.2 (grafo fixo) | Extração, contexto e previsão sempre na mesma ordem |
 | Integração | Função Python + servidor MCP (SDK oficial `mcp` 2.3) | Consumo como tool pela Galaxies |
 | Experimentos | MLflow 3.17 (versão e hash da base, cortes, parâmetros, métricas, SHAP) + pytest | Registro reprodutível |
@@ -198,7 +198,7 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
 - **Validação com um único corte:** hiperparâmetros e blocos foram escolhidos num só período de validação (abr–jul/2026), sem lacuna de 30 dias antes dele; o teste, avaliado com o modelo reajustado, fica a mais de 2 meses do fim do treino original.
 - **Confidencialidade dos criativos:** no free tier, o Gemini pode usar o conteúdo enviado para treino. Para vídeos já publicados isso é aceitável; um criativo **ainda não publicado** de um cliente não deve ir para o free tier: use `analisar_video=False` (só texto e imagem, com a confiança reduzida), a camada paga do Gemini ou um VLM aberto local.
 - **Criativo só em texto ou só imagem:** as colunas de vídeo e do VLM ficam ausentes, e o modelo, que viu a maioria dos vídeos de treino sem elas, ainda assim reage à ausência (por exemplo, "duração ausente" pesa na previsão). A resposta vem com `confidence_flag` ligado (`extracao_incompleta`) e deve ser lida como ordem de grandeza.
-- **O explicador usa um LLM próprio** (Gemini), além do LLM da persona que chama a tool. A explicação é validada e tem um texto padrão de reserva, mas o número nunca passa pelo LLM.
+- **O explicador usa um LLM próprio** (Gemini), além do LLM da persona que chama a tool. A explicação é validada e tem um texto padrão de reserva, mas o número nunca passa pelo LLM. No free tier, o `gemini-3.5-flash` permite só 20 pedidos por dia e os modelos ficam sobrecarregados com frequência: nesses casos a resposta usa o texto padrão (`explicacao_fonte = padrao`), que é sempre fiel. Em produção, use a camada paga ou deixe a narração para o LLM da persona.
 
 ## 9. Evolução
 

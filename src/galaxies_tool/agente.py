@@ -20,6 +20,7 @@ texto padrão montado só com os fatos (sempre fiel).
 import json
 import os
 import re
+import time
 from datetime import datetime
 from typing import Any, TypedDict
 
@@ -40,7 +41,10 @@ from galaxies_tool.contrato import (
 
 # LLM do subagente explicador, em ordem de preferência (o 2º cobre sobrecarga do 1º). São modelos
 # diferentes do VLM, então não gastam a cota diária dele (a cota do free tier é por modelo).
-MODELOS_LLM_PADRAO = "gemini-3.5-flash,gemini-flash-latest"
+# Free tier: o 3.5-flash permite só 20 pedidos/dia; o 3.1-flash-lite (o modelo do VLM, cuja coleta terminou)
+# permite 500. Se os dois falharem, o texto padrão (sempre fiel) assume, sem travar a tool.
+MODELOS_LLM_PADRAO = "gemini-3.5-flash,gemini-3.1-flash-lite"
+TENTATIVAS_LLM = 2  # por modelo, só em sobrecarga momentânea (5xx ou limite por minuto)
 NIVEL_INTERVALO_PCT = 80
 NOMES_FAIXA = {
     "abaixo": "abaixo da média do canal",
@@ -159,7 +163,7 @@ INSTRUCOES_EXPLICADOR = """Você é o subagente que explica a previsão de um mo
 para um time de marketing de moda e beleza. Você recebe os fatos já calculados (JSON) e preenche a
 explicação. Regras:
 1. Use SOMENTE fatos do JSON. Não invente causas, tendências, públicos nem números.
-2. Cite os números exatamente como estão no JSON (curtidas com ponto de milhar, ex.: 1.234).
+2. Cite os números exatamente como estão no JSON, com ponto de milhar nas curtidas.
    Conversões permitidas: razao_vs_canal em vezes ou em porcentagem a mais/menos, e impacto_pct
    arredondado para inteiro. Nenhuma outra conta.
 3. No resumo, cite curtidas_previstas, o intervalo (de e ate) e a posição em relação ao canal.
@@ -274,18 +278,28 @@ def _chamar_llm(instrucoes: str, conteudo: str, esquema=None) -> str | None:
         return None
     from google.genai import types
 
-    config = {"system_instruction": instrucoes, "temperature": 0.0}
+    # sem "pensamento" interno: a tarefa é redigir a partir de fatos prontos (cai de ~30 s para ~2 s), e a
+    # fidelidade é garantida pelo validador, não pelo raciocínio do modelo
+    config = {"system_instruction": instrucoes, "temperature": 0.0,
+              "thinking_config": types.ThinkingConfig(thinking_budget=0)}
     if esquema is not None:
         config.update(response_mime_type="application/json", response_schema=esquema)
     for nome in os.environ.get("AGENTE_MODELO", MODELOS_LLM_PADRAO).split(","):  # lido depois do .env
-        try:
-            r = cliente.models.generate_content(
-                model=nome.strip(), contents=conteudo, config=types.GenerateContentConfig(**config)
-            )
-            if texto := (r.text or "").strip():
-                return texto
-        except Exception:  # noqa: BLE001, S112 — cota, rede ou modelo indisponível: tenta o próximo
-            continue
+        for tentativa in range(TENTATIVAS_LLM):
+            try:
+                r = cliente.models.generate_content(
+                    model=nome.strip(), contents=conteudo, config=types.GenerateContentConfig(**config)
+                )
+                if texto := (r.text or "").strip():
+                    return texto
+                break
+            except Exception as e:  # noqa: BLE001 — cota, rede ou modelo indisponível
+                texto_erro = str(e).lower()
+                cota_do_dia = "perday" in texto_erro or "per day" in texto_erro
+                temporario = getattr(e, "code", None) in (429, 500, 503, 504) and not cota_do_dia
+                if not temporario or tentativa == TENTATIVAS_LLM - 1:
+                    break  # tenta o próximo modelo
+                time.sleep(2)
     return None
 
 
