@@ -174,12 +174,12 @@ Leitura:
 | Modelo | MAE-log | MAPE | Spearman intra-canal | Par-a-par | Par-a-par mesma época | F1 faixas |
 |---|---|---|---|---|---|---|
 | LightGBM | **0,816** | 1,346 | 0,309 | 61,4% | 57,0% | 0,286 |
-| CatBoost | 0,822 | **1,227** | 0,325 | 61,6% | **58,0%** | 0,266 |
+| CatBoost | 0,823 | **1,238** | 0,322 | 61,4% | **57,7%** | 0,270 |
 | XGBoost | 0,831 | 1,416 | 0,313 | 60,9% | 56,3% | **0,309** |
 | Ridge | 0,861 | 1,642 | 0,217 | 58,2% | 55,1% | 0,224 |
-| Média LightGBM + CatBoost | 0,816 | 1,275 | **0,333** | **61,9%** | 57,7% | 0,271 |
+| Média LightGBM + CatBoost | 0,817 | 1,279 | **0,331** | **61,8%** | **57,7%** | 0,275 |
 
-A média contra o LightGBM sozinho (IC 95%, bootstrap de canais): MAE-log +0,001 [−0,004; +0,006], par-a-par mesma época +0,7 p.p. [+0,1; +1,3], Spearman intra-canal +0,024 [+0,009; +0,040]. Pela regra registrada em 15/10 ("a média só entra se o ganho superar o ruído"), **a média entra**: ela empata no erro e ganha nas duas métricas de ordenação, que são as da decisão. O intervalo continua vindo dos quantis do LightGBM, e o SHAP da média é a média dos SHAPs dos dois modelos (aditivo).
+A média contra o LightGBM sozinho (IC 95%, bootstrap de canais): MAE-log +0,001 [−0,003; +0,006], par-a-par mesma época +0,6 p.p. [+0,0; +1,3], Spearman intra-canal +0,023 [+0,008; +0,037]. (A decisão foi tomada em 18/10 com uma primeira execução, feita com a versão anterior do script, em que o CatBoost parou em 3.273 iterações em vez de 4.942: Spearman intra-canal +0,024 [+0,009; +0,040] e par-a-par +0,7 p.p. [+0,1; +1,3]. A tabela acima é a da versão atual, que usa a mesma função de treino do artefato e o reproduz; a conclusão é a mesma.) Pela regra registrada em 15/10 ("a média só entra se o ganho superar o ruído"), **a média entra**: ela empata no erro e ganha nas duas métricas de ordenação, que são as da decisão. O intervalo continua vindo dos quantis do LightGBM, e o SHAP da média é a média dos SHAPs dos dois modelos (aditivo).
 
 ### Protocolo congelado antes do teste (18/10/2026)
 
@@ -206,6 +206,8 @@ Decidido só com a validação, antes de abrir o teste:
 Diferenças do modelo final com IC 95% (bootstrap pareado de canais):
 - contra a mediana do canal: MAE-log −0,076 [−0,097; −0,055]; par-a-par +11,2 p.p. [+9,6; +12,8]; par-a-par na mesma época +9,1 p.p. [+7,3; +10,9];
 - contra a regressão linear: MAE-log −0,082 [−0,102; −0,063]; par-a-par +0,6 p.p. [−1,6; +3,1] (empate: a regressão à média já ordena bem pares de épocas diferentes); par-a-par na mesma época +5,7 p.p. [+3,7; +8,0]; Spearman intra-canal +0,098 [+0,041; +0,151].
+
+**Sensibilidade à falta de lacuna.** O modelo final foi treinado até 01/07 e o teste começa em 02/07, sem a lacuna de 30 dias da aula 2.3: as curtidas dos vídeos de junho, usadas no treino, ainda não estariam maduras na data das primeiras previsões. Análise feita depois do teste, sem mudar nada no modelo: nos 2.855 vídeos publicados a partir de 01/08 (lacuna de 30 dias ou mais), MAE-log 0,762 (baseline 0,842), par-a-par na mesma época 60,2%, Spearman intra-canal 0,335 e cobertura 82,9%; nos 2.006 vídeos até 31/07, MAE-log 0,756 (baseline 0,826), par-a-par 57,3%, Spearman intra-canal 0,294 e cobertura 82,5%. A falta de lacuna não inflou o resultado.
 
 Cobertura do intervalo de 80% por grupo: beleza 81,8%, moda 84,8%; criadores 82,7%, marcas 82,6%. Por faixa do resultado real, a cobertura cai para 73% nos vídeos "abaixo" e para **43% nos virais** (≥ 3× a mediana do canal): o intervalo é calibrado na média, não na cauda.
 

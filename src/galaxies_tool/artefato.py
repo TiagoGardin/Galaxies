@@ -5,12 +5,15 @@ Saída: models/<versao>.joblib (artefato) e models/<versao>.json (metadados leg�
 calibração e métricas na validação).
 
 Protocolo (aulas 3.4 e 5.3 da trilha; docs/EXPERIMENTO.md):
-1. desenvolvimento: PCAs, LightGBM pontual (L1) e quantis de 10% e 90% ajustados só no split de treino;
+1. desenvolvimento: PCAs, previsão pontual (média de LightGBM e CatBoost, L1) e quantis de 10% e 90% do
+   LightGBM ajustados só no split de treino;
 2. calibração = validação, a fatia mais recente antes do teste: nela, o modelo de desenvolvimento (que não a
    viu) dá a correção conformal dos quantis (CQR, Romano et al. 2019), os limiares do confidence_flag e as
    métricas de validação. Nada disso olha o teste;
 3. final: o mesmo procedimento reajustado em treino + validação (o modelo não perde os meses mais
-   recentes), com a correção e os limiares do passo 2, que estimam o comportamento fora da amostra;
+   recentes), com a correção e os limiares do passo 2, que estimam o comportamento fora da amostra (o limiar
+   de distância é medido no espaço padronizado do modelo de desenvolvimento e aplicado no do final: uma
+   aproximação, conferida no teste, onde a regra disparou em 1% dos vídeos, como o p99 prevê);
 4. o artefato final é avaliado uma única vez no teste (avaliacao_final.py) e é o que o agente serve.
 
 confidence_flag: regras explícitas, cada uma com um código estável e uma frase (aula 5.4). Os limiares são

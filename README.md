@@ -119,6 +119,12 @@ r = prever_criativo({"creative": "https://www.youtube.com/shorts/<id>", "caption
 print(r.predicted_metric, r.interval_low, r.interval_high, r.confidence_flag, r.explanation)
 ```
 
+**Testado com o [MCP Inspector](https://github.com/modelcontextprotocol/inspector)** (modo de linha de comando; lista as tools, lê o `modelo://card` e chama `prever_criativo`, devolvendo os mesmos números da função Python). O teste `tests/test_mcp.py` faz o mesmo com o cliente do SDK oficial.
+
+```bash
+npx @modelcontextprotocol/inspector@0.17.2 --cli uv run --directory "$PWD" python -m galaxies_tool.servidor_mcp --method tools/list
+```
+
 **Num cliente MCP** (Claude Desktop, Claude Code ou o agente da Galaxies), com caminho absoluto:
 
 ```json
@@ -195,7 +201,7 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
 - **Fatores não observados:** mídia paga, distribuição do algoritmo, trends e collabs.
 - **Recorte:** só YouTube Shorts, moda e beleza, Brasil. Outras plataformas, setores (inclusive automotivo, que a tool aceita, mas sinaliza) ou países exigem retreino.
 - **Previsão absoluta é imprecisa por natureza:** o modelo é para comparar criativos, não para prometer números. A chance de um criativo superar outro (`ordenar_criativos`) supõe erros independentes, o que a torna conservadora.
-- **Validação com um único corte:** hiperparâmetros e blocos foram escolhidos num só período de validação (abr–jul/2026), sem lacuna de 30 dias antes dele; o teste, avaliado com o modelo reajustado, fica a mais de 2 meses do fim do treino original.
+- **Validação com um único corte e sem lacuna:** hiperparâmetros e blocos foram escolhidos num só período de validação (abr–jul/2026), e não há lacuna de 30 dias entre o fim do treino e o início da validação, nem entre o fim do treino final (01/07) e o teste (02/07): o modelo usou curtidas de vídeos de junho que, em 02/07, ainda não estariam maduras. Uma análise de sensibilidade mostra que isso não inflou o teste: nos vídeos publicados a partir de 01/08 (lacuna de 30 dias ou mais), o erro e a ordenação são iguais ou melhores (par-a-par na mesma época 60,2%, contra 59,1% no teste inteiro).
 - **Confidencialidade dos criativos:** no free tier, o Gemini pode usar o conteúdo enviado para treino. Para vídeos já publicados isso é aceitável; um criativo **ainda não publicado** de um cliente não deve ir para o free tier: use `analisar_video=False` (só texto e imagem, com a confiança reduzida), a camada paga do Gemini ou um VLM aberto local.
 - **Criativo só em texto ou só imagem:** as colunas de vídeo e do VLM ficam ausentes, e o modelo, que viu a maioria dos vídeos de treino sem elas, ainda assim reage à ausência (por exemplo, "duração ausente" pesa na previsão). A resposta vem com `confidence_flag` ligado (`extracao_incompleta`) e deve ser lida como ordem de grandeza.
 - **O explicador usa um LLM próprio** (Gemini), além do LLM da persona que chama a tool. A explicação é validada e tem um texto padrão de reserva, mas o número nunca passa pelo LLM. No free tier, o `gemini-3.5-flash` permite só 20 pedidos por dia e os modelos ficam sobrecarregados com frequência: nesses casos a resposta usa o texto padrão (`explicacao_fonte = padrao`), que é sempre fiel. Em produção, use a camada paga ou deixe a narração para o LLM da persona.
