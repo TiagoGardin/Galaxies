@@ -1,7 +1,7 @@
 """Agente orquestrador (LangGraph): criativo + contexto → previsão, intervalo, explicação e ranking.
 
 Uso como função Python:
-    from galaxies_tool.agente import prever_criativo, ordenar_criativos, what_if_horarios
+    from galaxies_tool.agente import prever_criativo, ordenar_criativos, what_if_horarios, what_if_legendas
     prever_criativo({"creative": "https://www.youtube.com/shorts/<id>", "caption": "...",
                      "planned_datetime": "2026-10-20T18:00", "channel_id": "UC...", "sector": "beleza"})
 
@@ -71,8 +71,13 @@ class Estado(TypedDict, total=False):
 def no_extrair_atributos(estado: Estado) -> Estado:
     """Tool 1: atributos do criativo (texto, imagem, vídeo e rubrica do VLM), com as funções do treino."""
     e = estado["entrada"]
+    # um modelo de cliente sem vídeo nem VLM não precisa baixar o vídeo (a etapa mais lenta)
+    partes = previsao.partes_usadas(previsao.artefato_da_entrada(e.modelo))
+    usa_video = bool(partes & {"vídeo", "rubrica do VLM"})
     return {
-        "atributos": extracao.extrair_isolado(e.creative, e.caption, e.description, e.tags, e.analisar_video)
+        "atributos": extracao.extrair_isolado(
+            e.creative, e.caption, e.description, e.tags, e.analisar_video and usa_video
+        )
     }
 
 
@@ -116,8 +121,16 @@ def linha_do_modelo(atributos: dict, contexto: dict) -> dict:
 
 def no_prever(estado: Estado) -> Estado:
     """Tool 3 (+ SHAP da Tool 4): previsão, intervalo de 80%, faixa, atribuição e sinal de confiança."""
+    e = estado["entrada"]
     linha = linha_do_modelo(estado["atributos"], estado["contexto"])
-    return {"previsao": previsao.prever_linha(linha, extracao_incompleta=estado["atributos"]["_faltando"])}
+    art = previsao.artefato_da_entrada(e.modelo)
+    contexto = estado["contexto"]
+    if "rag_canal_alvo" in art["colunas"]:  # variante v2: desempenho dos comparáveis vira feature
+        rag = canal.features_rag(estado["atributos"], contexto["published_at"], e.sector, e.channel_id)
+        linha.update(rag)
+        contexto = {**contexto, **rag}  # aparece na inspeção (atributos_extraidos)
+    faltando = [p for p in estado["atributos"]["_faltando"] if p in previsao.partes_usadas(art)]
+    return {"previsao": previsao.prever_linha(linha, art=art, extracao_incompleta=faltando), "contexto": contexto}
 
 
 # ---------------------------------------------------------------- Tool 4: explicador ancorado
@@ -355,6 +368,7 @@ def no_montar_saida(estado: Estado) -> Estado:
     inspecao["tipo_criativo"] = estado["atributos"]["_tipo"]
     inspecao["partes_nao_analisadas"] = ", ".join(estado["atributos"]["_faltando"]) or None
     inspecao["explicacao_fonte"] = estado["explicacao_fonte"]
+    inspecao["aviso_modelo"] = None if e.modelo else previsao.aviso_modelo()
     inspecao["explicacao_reprovacoes"] = "; ".join(estado["explicacao_problemas"]) or None
     saida = PrevisaoCriativo(
         id=e.id,
@@ -562,6 +576,34 @@ def what_if_horarios(entrada: EntradaCriativo | dict[str, Any], horarios: list[d
                 "interval_low": p["curtidas_baixo"],
                 "interval_high": p["curtidas_alto"],
                 "razao_prevista": p["razao_prevista"],
+                "confidence_flag": bool(p["motivos_baixa_confianca"]),
+            }
+        )
+    return saida
+
+
+def what_if_legendas(entrada: EntradaCriativo | dict[str, Any], legendas: list[str]) -> list[dict]:
+    """O mesmo criativo com outras legendas: imagem, vídeo e VLM são extraídos uma vez; só o texto (bloco B)
+    é recalculado, com as mesmas funções do treino. O primeiro item é a legenda original."""
+    entrada = EntradaCriativo.model_validate(entrada)
+    estado: Estado = {"entrada": entrada, **no_extrair_atributos({"entrada": entrada})}
+    estado.update(no_historico_canal(estado))
+    original = estado["atributos"]["_titulo"]
+    saida = []
+    for legenda in [original, *legendas]:
+        texto = estado["atributos"] if legenda == original else extracao.texto_isolado(
+            legenda, entrada.description, entrada.tags
+        )
+        atr = {**estado["atributos"], **texto, "_titulo": legenda}
+        p = no_prever({**estado, "atributos": atr})["previsao"]
+        saida.append(
+            {
+                "legenda": legenda,
+                "predicted_metric": p["curtidas_previstas"],
+                "interval_low": p["curtidas_baixo"],
+                "interval_high": p["curtidas_alto"],
+                "razao_prevista": p["razao_prevista"],
+                "efeito_do_texto_pct": p["contribuicao_por_bloco"].get("B (texto)"),
                 "confidence_flag": bool(p["motivos_baixa_confianca"]),
             }
         )

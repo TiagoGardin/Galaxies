@@ -2,33 +2,33 @@
   "ranking": [
     {
       "posicao": 1,
-      "id": "nga8BJNBf_E",
-      "predicted_metric": 26,
-      "interval_low": 8,
-      "interval_high": 157,
-      "razao_prevista": 0.87,
+      "id": "VXiHQOXr4_M",
+      "predicted_metric": 37,
+      "interval_low": 11,
+      "interval_high": 169,
+      "razao_prevista": 1.23,
       "faixa": "na_media",
       "confidence_flag": false,
-      "prob_superar_seguinte": 0.51
+      "prob_superar_seguinte": 0.58
     },
     {
       "posicao": 2,
-      "id": "VXiHQOXr4_M",
-      "predicted_metric": 25,
+      "id": "FKuwMbL3Jqs",
+      "predicted_metric": 27,
       "interval_low": 9,
-      "interval_high": 154,
-      "razao_prevista": 0.84,
+      "interval_high": 206,
+      "razao_prevista": 0.92,
       "faixa": "na_media",
       "confidence_flag": false,
-      "prob_superar_seguinte": 0.55
+      "prob_superar_seguinte": 0.53
     },
     {
       "posicao": 3,
-      "id": "FKuwMbL3Jqs",
-      "predicted_metric": 20,
-      "interval_low": 9,
-      "interval_high": 216,
-      "razao_prevista": 0.67,
+      "id": "nga8BJNBf_E",
+      "predicted_metric": 24,
+      "interval_low": 8,
+      "interval_high": 121,
+      "razao_prevista": 0.81,
       "faixa": "na_media",
       "confidence_flag": false,
       "prob_superar_seguinte": null
@@ -38,15 +38,15 @@
     {
       "id": "nga8BJNBf_E",
       "metric": "curtidas",
-      "predicted_metric": 26,
+      "predicted_metric": 24,
       "interval_low": 8,
-      "interval_high": 157,
+      "interval_high": 121,
       "interval_level": 0.8,
       "confidence_flag": false,
       "confidence_reasons": [],
       "relative_to_channel": {
         "mediana_canal": 29.5,
-        "razao_prevista": 0.87,
+        "razao_prevista": 0.81,
         "faixa": "na_media"
       },
       "top_drivers": [
@@ -55,58 +55,59 @@
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "30 curtidas (mediana)",
           "efeito": "aumenta",
-          "impacto_pct": 25.3,
+          "impacto_pct": 30.4,
           "bloco": "A (canal e contexto)"
-        },
-        {
-          "atributo": "duracao_s",
-          "descricao": "Duração do vídeo",
-          "valor": "31 s",
-          "efeito": "reduz",
-          "impacto_pct": -14.8,
-          "bloco": "A (canal e contexto)"
-        },
-        {
-          "atributo": "emb_thumb",
-          "descricao": "Estilo visual da imagem de capa",
-          "valor": "—",
-          "efeito": "reduz",
-          "impacto_pct": -12.1,
-          "bloco": "C (imagem de capa)"
         },
         {
           "atributo": "emb_texto",
           "descricao": "Tema e estilo da legenda",
           "valor": "—",
           "efeito": "reduz",
-          "impacto_pct": -11.1,
+          "impacto_pct": -15.7,
           "bloco": "B (texto)"
         },
         {
-          "atributo": "vlm_estetica_geral_0a10",
-          "descricao": "Qualidade estética e de produção (nota 0–10)",
-          "valor": "10",
-          "efeito": "aumenta",
-          "impacto_pct": 10.4,
-          "bloco": "D (VLM)"
+          "atributo": "rag_canal_alvo",
+          "descricao": "Desempenho de Shorts parecidos do próprio canal",
+          "valor": "0,51× a mediana do canal",
+          "efeito": "reduz",
+          "impacto_pct": -10.6,
+          "bloco": "R (comparáveis)"
+        },
+        {
+          "atributo": "duracao_s",
+          "descricao": "Duração do vídeo",
+          "valor": "31 s",
+          "efeito": "reduz",
+          "impacto_pct": -9.5,
+          "bloco": "A (canal e contexto)"
         },
         {
           "atributo": "thumb_contraste",
           "descricao": "Contraste da imagem de capa",
           "valor": "0,33",
           "efeito": "reduz",
-          "impacto_pct": -7.9,
+          "impacto_pct": -4.8,
           "bloco": "C (imagem de capa)"
+        },
+        {
+          "atributo": "rag_canal_recente",
+          "descricao": "Desempenho recente do canal em relação à própria mediana",
+          "valor": "1,19× a mediana do canal",
+          "efeito": "reduz",
+          "impacto_pct": -3.7,
+          "bloco": "R (comparáveis)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": 5.3,
-        "B (texto)": -6.5,
-        "C (imagem de capa)": -18.5,
-        "C (vídeo e áudio)": 2.1,
-        "D (VLM)": 8.3
+        "A (canal e contexto)": 17.2,
+        "B (texto)": -13.5,
+        "C (imagem de capa)": -4.1,
+        "C (vídeo e áudio)": 0.7,
+        "D (VLM)": -3.0,
+        "R (comparáveis)": -12.5
       },
-      "explanation": "A publicação possui uma previsão de 26 curtidas, com um intervalo estimado de 8 ate 157 curtidas. Esse resultado posiciona o conteúdo na média do canal, atingindo 0,87 vezes a mediana. Principais fatores: patamar de curtidas recente do canal: Aumenta a previsão em 25%, sendo um contexto do histórico do canal e não do conteúdo criativo; duração do vídeo: Reduz a previsão em 15%; estilo visual da imagem de capa: Reduz a previsão em 12%. Como comparação, o conteúdo 'Como zerar a porosidade e recuperar o cabelo danificado desde o primeiro uso' registrou 22 curtidas. Os fatores apresentados indicam associações aprendidas pelo modelo no histórico do canal, e não causas comprovadas.",
+      "explanation": "A previsão é de 24 curtidas para este conteúdo, com um intervalo entre 8 e 121 curtidas. Este resultado coloca o vídeo na média do canal, representando 0,81 vezes o desempenho habitual. Principais fatores: patamar de curtidas recente do canal: Este contexto histórico do canal contribui positivamente, aumentando o alcance em 30%; tema e estilo da legenda: Esta característica do criativo reduz a expectativa de engajamento em 16%; desempenho de shorts parecidos do próprio canal: O histórico de conteúdos similares reduz a previsão em 11%; duração do vídeo: O tempo de duração do vídeo impacta negativamente a previsão em 10%. O modelo identificou que conteúdos comparáveis, como 'Como zerar a porosidade e recuperar o cabelo danificado desde o primeiro uso', obtiveram 22 curtidas, o que serve como evidência para a estimativa atual.",
       "comparables": [
         {
           "video_id": "Cg4oMv8n8ZM",
@@ -224,24 +225,29 @@
         "setor": "beleza",
         "tipo_canal": "marca",
         "published_at": "2026-08-28T19:10-03:00",
+        "rag_canal_alvo": -0.6667226519103662,
+        "rag_canal_sim": 0.7227562665939331,
+        "rag_canal_recente": 0.17257642188410366,
+        "rag_setor_alvo": 0.14804098634258736,
         "tipo_criativo": "youtube",
         "partes_nao_analisadas": null,
-        "explicacao_fonte": "llm"
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     },
     {
       "id": "FKuwMbL3Jqs",
       "metric": "curtidas",
-      "predicted_metric": 20,
+      "predicted_metric": 27,
       "interval_low": 9,
-      "interval_high": 216,
+      "interval_high": 206,
       "interval_level": 0.8,
       "confidence_flag": false,
       "confidence_reasons": [],
       "relative_to_channel": {
         "mediana_canal": 29.5,
-        "razao_prevista": 0.67,
+        "razao_prevista": 0.92,
         "faixa": "na_media"
       },
       "top_drivers": [
@@ -250,7 +256,7 @@
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "30 curtidas (mediana)",
           "efeito": "aumenta",
-          "impacto_pct": 27.8,
+          "impacto_pct": 28.9,
           "bloco": "A (canal e contexto)"
         },
         {
@@ -258,50 +264,51 @@
           "descricao": "Duração do vídeo",
           "valor": "31 s",
           "efeito": "reduz",
-          "impacto_pct": -13.1,
+          "impacto_pct": -10.6,
           "bloco": "A (canal e contexto)"
         },
         {
-          "atributo": "emb_gancho",
-          "descricao": "Visual dos primeiros 3 segundos (gancho)",
-          "valor": "—",
+          "atributo": "rag_canal_sim",
+          "descricao": "Semelhança com Shorts anteriores do canal",
+          "valor": "0,66",
           "efeito": "reduz",
-          "impacto_pct": -7.1,
-          "bloco": "C (vídeo e áudio)"
-        },
-        {
-          "atributo": "emb_thumb",
-          "descricao": "Estilo visual da imagem de capa",
-          "valor": "—",
-          "efeito": "reduz",
-          "impacto_pct": -7.0,
-          "bloco": "C (imagem de capa)"
-        },
-        {
-          "atributo": "n_tags",
-          "descricao": "Número de tags",
-          "valor": "11",
-          "efeito": "reduz",
-          "impacto_pct": -6.0,
-          "bloco": "A (canal e contexto)"
+          "impacto_pct": -7.8,
+          "bloco": "R (comparáveis)"
         },
         {
           "atributo": "emb_texto",
           "descricao": "Tema e estilo da legenda",
           "valor": "—",
           "efeito": "reduz",
-          "impacto_pct": -5.8,
+          "impacto_pct": -4.0,
           "bloco": "B (texto)"
+        },
+        {
+          "atributo": "emb_gancho",
+          "descricao": "Visual dos primeiros 3 segundos (gancho)",
+          "valor": "—",
+          "efeito": "reduz",
+          "impacto_pct": -3.7,
+          "bloco": "C (vídeo e áudio)"
+        },
+        {
+          "atributo": "mes",
+          "descricao": "Mês de publicação",
+          "valor": "9",
+          "efeito": "aumenta",
+          "impacto_pct": 3.7,
+          "bloco": "A (canal e contexto)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": 4.2,
-        "B (texto)": -0.7,
-        "C (imagem de capa)": -18.0,
-        "C (vídeo e áudio)": -15.9,
-        "D (VLM)": -3.8
+        "A (canal e contexto)": 14.9,
+        "B (texto)": -0.9,
+        "C (imagem de capa)": -5.4,
+        "C (vídeo e áudio)": -7.1,
+        "D (VLM)": -1.9,
+        "R (comparáveis)": -4.4
       },
-      "explanation": "Previsão: 20 curtidas (intervalo de 80%: 9 a 216), 0,67× a mediana recente do canal (30), ou seja, na média do canal. Principais fatores: patamar de curtidas recente do canal = 30 curtidas (mediana) (aumenta ~28%); duração do vídeo = 31 s (reduz ~13%); visual dos primeiros 3 segundos (gancho) = — (reduz ~7%); estilo visual da imagem de capa = — (reduz ~7%). Os fatores são associações aprendidas pelo modelo, não causas comprovadas.",
+      "explanation": "A previsão é de 27 curtidas para este conteúdo, com um intervalo de 9 a 206 curtidas. Este desempenho coloca o vídeo na média do canal, representando 0,92 vezes o resultado habitual. Principais fatores: patamar de curtidas recente do canal: Este contexto histórico do canal contribui positivamente, aumentando o alcance em 29%; duração do vídeo: A duração de 31 segundos é uma associação que reduz o potencial de engajamento em 11%; semelhança com shorts anteriores do canal: A similaridade com conteúdos passados reduz a previsão em 8%; tema e estilo da legenda: O estilo da legenda adotado reduz a estimativa em 4%. O modelo identificou que conteúdos como 'É impossível não reparar! O segredo que faltava na sua rotina capilar com #EudoraSiàge', que obteve 26 curtidas, servem como evidência para este padrão de entrega.",
       "comparables": [
         {
           "video_id": "EUzrplXqEww",
@@ -419,24 +426,29 @@
         "setor": "beleza",
         "tipo_canal": "marca",
         "published_at": "2026-09-03T16:09-03:00",
+        "rag_canal_alvo": 0.33504217829306787,
+        "rag_canal_sim": 0.6582798361778259,
+        "rag_canal_recente": 0.17257642188410366,
+        "rag_setor_alvo": 0.5187477059963251,
         "tipo_criativo": "youtube",
         "partes_nao_analisadas": null,
-        "explicacao_fonte": "padrao"
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     },
     {
       "id": "VXiHQOXr4_M",
       "metric": "curtidas",
-      "predicted_metric": 25,
-      "interval_low": 9,
-      "interval_high": 154,
+      "predicted_metric": 37,
+      "interval_low": 11,
+      "interval_high": 169,
       "interval_level": 0.8,
       "confidence_flag": false,
       "confidence_reasons": [],
       "relative_to_channel": {
         "mediana_canal": 29.5,
-        "razao_prevista": 0.84,
+        "razao_prevista": 1.23,
         "faixa": "na_media"
       },
       "top_drivers": [
@@ -445,7 +457,7 @@
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "30 curtidas (mediana)",
           "efeito": "aumenta",
-          "impacto_pct": 27.6,
+          "impacto_pct": 30.8,
           "bloco": "A (canal e contexto)"
         },
         {
@@ -453,15 +465,23 @@
           "descricao": "Estilo visual da imagem de capa",
           "valor": "—",
           "efeito": "reduz",
-          "impacto_pct": -20.3,
+          "impacto_pct": -16.4,
           "bloco": "C (imagem de capa)"
+        },
+        {
+          "atributo": "rag_canal_alvo",
+          "descricao": "Desempenho de Shorts parecidos do próprio canal",
+          "valor": "2,90× a mediana do canal",
+          "efeito": "aumenta",
+          "impacto_pct": 17.2,
+          "bloco": "R (comparáveis)"
         },
         {
           "atributo": "duracao_s",
           "descricao": "Duração do vídeo",
           "valor": "40 s",
           "efeito": "reduz",
-          "impacto_pct": -10.2,
+          "impacto_pct": -8.6,
           "bloco": "A (canal e contexto)"
         },
         {
@@ -473,30 +493,23 @@
           "bloco": "A (canal e contexto)"
         },
         {
-          "atributo": "thumb_brilho",
-          "descricao": "Brilho da imagem de capa",
-          "valor": "0,46",
+          "atributo": "emb_gancho",
+          "descricao": "Visual dos primeiros 3 segundos (gancho)",
+          "valor": "—",
           "efeito": "reduz",
-          "impacto_pct": -5.0,
-          "bloco": "C (imagem de capa)"
-        },
-        {
-          "atributo": "n_tags",
-          "descricao": "Número de tags",
-          "valor": "11",
-          "efeito": "reduz",
-          "impacto_pct": -4.1,
-          "bloco": "A (canal e contexto)"
+          "impacto_pct": -4.8,
+          "bloco": "C (vídeo e áudio)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": 12.5,
-        "B (texto)": 2.2,
-        "C (imagem de capa)": -22.4,
-        "C (vídeo e áudio)": -0.4,
-        "D (VLM)": -3.4
+        "A (canal e contexto)": 24.0,
+        "B (texto)": 6.1,
+        "C (imagem de capa)": -17.0,
+        "C (vídeo e áudio)": -2.8,
+        "D (VLM)": -1.3,
+        "R (comparáveis)": 20.1
       },
-      "explanation": "A publicação tem previsão de 25 curtidas, com intervalo esperado de 9 até 154 curtidas. Esse volume se posiciona na média do canal, equivalente a 0,84 vezes a mediana recente de 30 curtidas. Principais fatores: patamar de curtidas recente do canal: Contexto do histórico recente do canal, e não do criativo, associado a um aumento de 28% na estimativa; estilo visual da imagem de capa: Associação visual identificada pelo modelo que reduz a estimativa em 20%; duração do vídeo: O formato de 40 s reduz a estimativa de desempenho em 10%. Os fatores indicados são associações estatísticas identificadas pelo modelo no histórico de dados, não causas comprovadas de sucesso ou fracasso. Como referência de conteúdo similar recente, a publicação 'Como zerar a porosidade e recuperar o cabelo danificado desde o primeiro uso' obteve 22 curtidas, atingindo 0,6 do patamar do canal.",
+      "explanation": "A previsão é de 37 curtidas para este conteúdo, com um intervalo de 11 a 169 curtidas. Esse resultado coloca o vídeo na média do canal, com um desempenho 1,23 vezes superior à mediana histórica. Principais fatores: patamar de curtidas recente do canal: Este contexto histórico do canal contribui para um aumento de 31% na previsão; estilo visual da imagem de capa: Este elemento está associado a uma redução de 16% no impacto esperado; desempenho de shorts parecidos do próprio canal: O histórico de vídeos similares impulsiona a previsão em 17%; duração do vídeo: A duração de 40 s é um fator que reduz a estimativa em 9%. Os fatores listados são associações aprendidas pelo modelo e não causas comprovadas. Como evidência de variação, o vídeo 'Como ter a sensação de 44 mil fios a mais no cabelo? A @BiaOliveira te conta tudo!' obteve 880 curtidas, enquanto o vídeo 'Como recuperar os cachos pós-carnaval? O segredo é Eudora Siàge Hair Plastia!' alcançou 14 curtidas.",
       "comparables": [
         {
           "video_id": "Cg4oMv8n8ZM",
@@ -614,12 +627,17 @@
         "setor": "beleza",
         "tipo_canal": "marca",
         "published_at": "2026-09-10T17:49-03:00",
+        "rag_canal_alvo": 1.0634197641919318,
+        "rag_canal_sim": 0.7385468482971191,
+        "rag_canal_recente": 0.12671892854189243,
+        "rag_setor_alvo": 0.2150530560548426,
         "tipo_criativo": "youtube",
         "partes_nao_analisadas": null,
-        "explicacao_fonte": "llm"
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     }
   ],
-  "explanation": "O criativo **nga8BJNBf_E** é o que deve render mais, com previsão de 26 curtidas e intervalo de 8 a 157, enquanto os outros mostram 25 curtidas (intervalo de 9 a 154) e 20 curtidas (intervalo de 9 a 216). Os fatores que mais diferenciam o primeiro colocado dos demais são a duração do vídeo de 31 segundos, um menor impacto negativo do estilo visual da imagem de capa e a presença da análise sobre o tema e estilo da legenda. Como os intervalos de todos os vídeos se sobrepõem, a diferença de desempenho entre eles é incerta. Além disso, nenhum criativo apresentou baixa confiança na análise."
+  "explanation": "O criativo VXiHQOXr4_M deve render mais, com previsão de 37 curtidas e intervalo entre 11 e 169. O que coloca este vídeo à frente dos demais é o seu desempenho superior em relação a Shorts parecidos do próprio canal, que impulsiona o resultado em 17,2%. Como os intervalos de todos os criativos se sobrepõem significativamente, a diferença real entre eles ainda é incerta. Não há registros de baixa confiança para nenhum dos conteúdos analisados."
 }

@@ -65,6 +65,15 @@ def cobertura(y, baixo, alto) -> float:
     return float(np.mean((y >= np.asarray(baixo)) & (y <= np.asarray(alto))))
 
 
+def interval_score(y, baixo, alto, alfa: float = 0.2) -> float:
+    """Interval score de Winkler (Gneiting e Raftery, 2007), uma proper scoring rule para o intervalo de
+    (1 − alfa): largura + (2/alfa) × o quanto o real ficou fora. Menor é melhor; premia intervalos estreitos
+    que ainda cobrem, ao contrário da cobertura sozinha (que um intervalo infinito maximiza)."""
+    y, lo, hi = np.asarray(y), np.asarray(baixo), np.asarray(alto)
+    fora = np.maximum(lo - y, 0) + np.maximum(y - hi, 0)
+    return float(np.mean((hi - lo) + (2 / alfa) * fora))
+
+
 def f1_faixas(y, p) -> float:
     return float(f1_score(faixa(y), faixa(p), average="macro", labels=list(NOMES_FAIXAS), zero_division=0))
 
@@ -146,4 +155,5 @@ def avaliar(y, p, canal, log_mediana, baixo=None, alto=None, datas=None) -> dict
             y, p, canal, datas, JANELA_MESMA_EPOCA_DIAS)
     if baixo is not None:
         r["cobertura_80"] = cobertura(y, baixo, alto)
+        r["interval_score_80"] = interval_score(y, baixo, alto)
     return r

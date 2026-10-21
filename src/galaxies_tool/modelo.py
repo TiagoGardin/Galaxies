@@ -48,6 +48,14 @@ SEMENTE = 42
 # (prefixo das colunas brutas, nome do embedding, nº de componentes)
 EMBEDDINGS = (("embtxt_", "emb_texto", 16), ("embimg_", "emb_thumb", 16), ("embgancho_", "emb_gancho", 8))
 
+# Variantes do modelo. A v1 é a avaliada no teste temporal (19/10/2026) e a servida por padrão. A v2 foi escolhida
+# depois, só na validação (21/10/2026): PCA de 32 componentes no texto e na thumbnail (o TAPI sugere 16 a 32) e
+# as features de recuperação de comparáveis (rag.py). Ela só é medida no teste prospectivo (docs/EXPERIMENTO.md).
+VARIANTES = {
+    "v1": {"dims": {"emb_texto": 16, "emb_thumb": 16, "emb_gancho": 8}, "rag": False},
+    "v2": {"dims": {"emb_texto": 32, "emb_thumb": 32, "emb_gancho": 8}, "rag": True},
+}
+
 BLOCO_A = ["log_mediana_likes_ult20", "std_log_likes_ult20", "tendencia", "n_shorts_anteriores", "shorts_ult_30d",
            "dias_desde_ultimo_post", "tipo_canal", "setor", "hora", "dia_semana", "fim_de_semana", "mes",
            "data_sazonal", "duracao_s", "categoria_id", "n_tags"]
@@ -88,10 +96,10 @@ def _embeddings(arquivo: Path, prefixo: str, ids: pd.Series) -> pd.DataFrame | N
     return tab.reindex(ids.values).reset_index(drop=True)
 
 
-def carregar() -> pd.DataFrame:
+def carregar(rag: bool = False) -> pd.DataFrame:
     """Uma linha por vídeo-alvo com todos os blocos. Vídeo fora da amostra dos blocos C (vídeo) e D, ou
     cuja extração falhou, fica com essas colunas NaN; `tem_video` e `tem_vlm` marcam quem tem (diagnóstico,
-    nunca feature)."""
+    nunca feature). Com `rag`, acrescenta as features de recuperação de comparáveis (variante v2)."""
     df = pd.read_parquet(FEATURES)
     n = len(df)
     for arquivo, (prefixo, _, _) in zip((EMB_TEXTO, EMB_THUMB, EMB_GANCHO), EMBEDDINGS, strict=True):
@@ -104,6 +112,10 @@ def carregar() -> pd.DataFrame:
         df = df.merge(extra, on="video_id", how="left", validate="one_to_one")
     df["tem_video"] = df.video_id.isin(video.video_id)
     df["tem_vlm"] = df.video_id.isin(vlm.video_id)
+    if rag:
+        from galaxies_tool import rag as rag_
+
+        df = pd.concat([df, rag_.features_da_base(df)], axis=1)
     assert len(df) == n
     return df
 
@@ -134,10 +146,11 @@ def adicionar_pca(treino: pd.DataFrame, outros: list[pd.DataFrame], prefixo: str
     return nomes, [aplicar_pca(pca, d, cols_emb, nomes) for d in [treino, *outros]]
 
 
-def ajustar_pcas(treino: pd.DataFrame) -> dict:
+def ajustar_pcas(treino: pd.DataFrame, variante: str = "v1") -> dict:
     """Os três PCAs, ajustados no `treino`, no formato guardado pelo artefato."""
     pcas = {}
-    for prefixo, nome, n in EMBEDDINGS:
+    for prefixo, nome, _ in EMBEDDINGS:
+        n = VARIANTES[variante]["dims"][nome]
         cols = [c for c in treino.columns if c.startswith(prefixo)]
         if cols:
             pca = PCA(n_components=n, random_state=SEMENTE).fit(treino[cols].dropna())
@@ -159,19 +172,25 @@ def colunas_thumb(df: pd.DataFrame) -> list[str]:
     return [c for c in BLOCO_C_THUMB if c in df.columns and df[c].notna().mean() > 0.99]
 
 
-def blocos(df: pd.DataFrame) -> dict[str, list[str]]:
-    """Colunas de cada bloco, na ordem da escada de ablação."""
-    return {
+def blocos(df: pd.DataFrame, variante: str = "v1") -> dict[str, list[str]]:
+    """Colunas de cada bloco, na ordem da escada de ablação (a v2 acrescenta o bloco R, de comparáveis)."""
+    d = VARIANTES[variante]["dims"]
+    b = {
         "A": BLOCO_A,
-        "B": BLOCO_B_MANUAL + nomes_pca("emb_texto", 16),
-        "C_thumb": colunas_thumb(df) + nomes_pca("emb_thumb", 16),
-        "C_video": BLOCO_C_VIDEO + nomes_pca("emb_gancho", 8),
+        "B": BLOCO_B_MANUAL + nomes_pca("emb_texto", d["emb_texto"]),
+        "C_thumb": colunas_thumb(df) + nomes_pca("emb_thumb", d["emb_thumb"]),
+        "C_video": BLOCO_C_VIDEO + nomes_pca("emb_gancho", d["emb_gancho"]),
         "D": BLOCO_D,
     }
+    if VARIANTES[variante]["rag"]:
+        from galaxies_tool import rag
+
+        b["R"] = list(rag.COLUNAS)
+    return b
 
 
-def colunas_completas(df: pd.DataFrame) -> list[str]:
-    return [c for cols in blocos(df).values() for c in cols]
+def colunas_completas(df: pd.DataFrame, variante: str = "v1") -> list[str]:
+    return [c for cols in blocos(df, variante).values() for c in cols]
 
 
 def matriz(df: pd.DataFrame, cols: list[str]) -> pd.DataFrame:

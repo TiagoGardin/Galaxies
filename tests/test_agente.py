@@ -118,17 +118,20 @@ def test_historico_do_cliente_igual_ao_da_base():
 
 
 @pytest.mark.slow
-def test_numero_do_agente_igual_ao_do_modelo():
-    """Para vídeos da validação com vídeo e VLM, o caminho do agente (extração + histórico + previsão)
-    reproduz as features do treino e a previsão do artefato avaliado no experimento."""
-    if not TEM_DADOS:
+@pytest.mark.parametrize("artefato", [ARTEFATO, "models/lgbm_v2.joblib"])
+def test_numero_do_agente_igual_ao_do_modelo(artefato):
+    """Para vídeos da validação com vídeo e VLM, o caminho do agente (extração + histórico + comparáveis +
+    previsão) reproduz as features do treino e a previsão do artefato (v1, a do teste temporal, e v2, a
+    servida)."""
+    if not TEM_DADOS or not Path(artefato).exists():
         pytest.skip("sem dados locais")
     from galaxies_tool import canal, extracao, modelo, previsao
     from galaxies_tool.agente import linha_do_modelo
     from galaxies_tool.artefato import preparar, prever
 
-    df = modelo.carregar()
-    art = previsao.carregar_artefato(ARTEFATO)
+    art = previsao.carregar_artefato(artefato)
+    usa_rag = "rag_canal_alvo" in art["colunas"]
+    df = modelo.carregar(rag=usa_rag)
     amostra = df[(df.split == "validacao") & df.tem_video & df.tem_vlm].sample(4, random_state=1)
     ref = prever(art, preparar(amostra, art)).alvo_previsto.to_numpy()
     obtido = []
@@ -141,6 +144,8 @@ def test_numero_do_agente_igual_ao_do_modelo():
             "tipo_canal": r.tipo_canal,
             "published_at": r.published_at,
         }
+        if usa_rag:
+            ctx.update(canal.features_rag(atr, r.published_at, r.setor, r.channel_id))
         obtido.append(previsao.prever_linha(linha_do_modelo(atr, ctx), art)["alvo_previsto"])
     np.testing.assert_allclose(obtido, ref, atol=1e-6)
 
@@ -170,3 +175,17 @@ def test_golden_set_de_para_da_demo():
     assert spearmanr(t.previsto, t.real).statistic > 0.6
     assert 0.6 <= ((t.real >= t.baixo) & (t.real <= t.alto)).mean() <= 1.0
     assert np.mean([spearmanr(g.previsto, g.real).statistic for _, g in t.groupby("canal")]) >= 0
+
+
+def test_tool_avisa_quando_cai_para_a_v1(monkeypatch, tmp_path):
+    """Sem os embeddings da base (clone do repositório), a v2 não roda: a tool usa a v1 e diz isso."""
+    from galaxies_tool import modelo, previsao
+
+    if not previsao.V2.exists():
+        pytest.skip("sem models/lgbm_v2.joblib")
+    monkeypatch.delenv("GALAXIES_MODELO", raising=False)
+    monkeypatch.setattr(modelo, "EMB_TEXTO", tmp_path / "nao_existe.npy")
+    assert previsao.caminho_padrao() == previsao.V1
+    assert "v1" in previsao.aviso_modelo()
+    monkeypatch.setenv("GALAXIES_MODELO", str(previsao.V1))  # escolha explícita: sem aviso
+    assert previsao.aviso_modelo() is None

@@ -16,7 +16,7 @@ import joblib
 import numpy as np
 import pandas as pd
 
-from galaxies_tool import modelo, multimodal
+from galaxies_tool import modelo, multimodal, rag
 from galaxies_tool.artefato import contribuicoes, distancia_ood, motivos, preparar
 from galaxies_tool.artefato import prever as prever_artefato
 from galaxies_tool.metricas import faixa
@@ -95,6 +95,7 @@ DESCRICOES = {
     "vlm_audio_original_ou_musica": "Tipo de áudio predominante",
     "vlm_tom_narracao": "Tom da narração",
     "vlm_formato": "Formato real do vídeo",
+    **rag.DESCRICOES,
 }
 BLOCOS = {
     "A (canal e contexto)": set(modelo.BLOCO_A),
@@ -102,19 +103,60 @@ BLOCOS = {
     "C (imagem de capa)": set(modelo.BLOCO_C_THUMB) | {"emb_thumb"},
     "C (vídeo e áudio)": set(modelo.BLOCO_C_VIDEO) | {"emb_gancho"},
     "D (VLM)": set(modelo.BLOCO_D),
+    "R (comparáveis)": set(rag.COLUNAS),
 }
 BINARIAS = set(multimodal.COLUNAS_VLM_BINARIAS) | {"tem_voz"}
 
 
+V1, V2 = PASTA / "lgbm_final.joblib", PASTA / "lgbm_v2.joblib"
+
+
 def caminho_padrao() -> Path:
+    """Modelo servido: a v2 (escolhida pela regra pré-registrada no teste prospectivo de 21/10/2026; ver
+    docs/EXPERIMENTO.md). Ela precisa dos embeddings da base para as features de comparáveis; sem eles (não
+    vão para o git), cai para a v1, a avaliada no teste temporal. GALAXIES_MODELO escolhe outro artefato."""
     if env := os.environ.get("GALAXIES_MODELO"):
         return Path(env)
-    return PASTA / "lgbm_final.joblib"
+    if V2.exists() and modelo.EMB_TEXTO.exists() and modelo.EMB_THUMB.exists():
+        return V2
+    return V1
+
+
+def aviso_modelo() -> str | None:
+    """Frase para a resposta quando a tool caiu para a v1 por falta dos embeddings da base (None se não caiu)."""
+    if os.environ.get("GALAXIES_MODELO") or not V2.exists() or caminho_padrao() == V2:
+        return None
+    return ("modelo v2 indisponível nesta máquina (faltam data/features/emb_texto.npy e emb_thumb.npy, "
+            "não versionados): a previsão usa a v1 (lgbm_final), a avaliada no teste temporal")
 
 
 @lru_cache(maxsize=4)
 def carregar_artefato(caminho: str | None = None) -> dict:
     return joblib.load(caminho or caminho_padrao())
+
+
+def artefato_da_entrada(modelo_cliente: str | None) -> dict:
+    """Modelo principal ou, com `modelo_cliente`, o especialista de models/clientes/<nome>.joblib."""
+    if not modelo_cliente:
+        return carregar_artefato(str(caminho_padrao()))
+    from galaxies_tool.treino_cliente import caminho
+
+    arq = caminho(modelo_cliente)
+    if not arq.exists():
+        raise ValueError(f"modelo '{modelo_cliente}' não encontrado: treine com treinar_modelo_cliente")
+    return carregar_artefato(str(arq))
+
+
+PARTES = {  # parte do criativo (como em extracao._faltando) → colunas que dependem dela
+    "imagem": tuple(modelo.BLOCO_C_THUMB) + ("emb_thumb_pca",),
+    "vídeo": tuple(modelo.BLOCO_C_VIDEO) + ("emb_gancho_pca",),
+    "rubrica do VLM": ("vlm_",),
+}
+
+
+def partes_usadas(art: dict) -> set[str]:
+    """Partes do criativo que o modelo usa (o principal usa todas; um modelo de cliente, só algumas)."""
+    return {p for p, prefixos in PARTES.items() if any(c.startswith(prefixos) for c in art["colunas"])}
 
 
 def grupo(coluna: str) -> str:
@@ -141,6 +183,8 @@ def formatar(g: str, valor) -> str:
         return f"{np.expm1(valor):,.0f} curtidas (mediana)".replace(",", ".")
     if g == "duracao_s":
         return f"{valor:.0f} s"
+    if g in ("rag_canal_alvo", "rag_canal_recente", "rag_setor_alvo"):  # log da razão → vezes a mediana
+        return f"{np.exp(valor):.2f}× a mediana do canal".replace(".", ",")
     if g.endswith("_0a10"):
         return f"{valor:.0f}"
     if isinstance(valor, float):

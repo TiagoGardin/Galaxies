@@ -1,6 +1,6 @@
 """Treina, calibra e salva o artefato que o agente usa (e que a avaliação final mede no teste).
 
-Uso: uv run python -m galaxies_tool.artefato [--versao lgbm_final]
+Uso: uv run python -m galaxies_tool.artefato [--versao lgbm_final] [--variante v1|v2]
 Saída: models/<versao>.joblib (artefato) e models/<versao>.json (metadados legíveis: features, limiares,
 calibração e métricas na validação).
 
@@ -67,19 +67,29 @@ def _br(x: float) -> str:
 # ---------------------------------------------------------------- treino
 
 
-def treinar(treino: pd.DataFrame, params: dict | None = None, arvores: dict | None = None) -> dict:
+def treinar(
+    treino: pd.DataFrame,
+    params: dict | None = None,
+    arvores: dict | None = None,
+    colunas: list[str] | None = None,
+    com_catboost: bool = True,
+    variante: str = "v1",
+) -> dict:
     """Ajusta PCAs, os modelos e o índice de vizinhos no `treino`. Retorna o artefato sem calibração.
 
     Ponto = média de LightGBM e CatBoost (L1), escolhida na validação (docs/EXPERIMENTO.md); intervalo =
     quantis do LightGBM. `arvores` ({"ponto": n, "catboost": n, 0.1: n, 0.9: n}): número de árvores fixo
-    (refit), sem novo early stopping."""
+    (refit), sem novo early stopping. `colunas` e `com_catboost` existem para o treino dinâmico com a base
+    de um cliente (treino_cliente.py); o padrão é o modelo principal (todos os blocos, com o CatBoost)."""
     params = params or modelo.params_lgbm()
     arvores = arvores or {}
-    pcas = modelo.ajustar_pcas(treino)
+    pcas = modelo.ajustar_pcas(treino, variante)
     treino = modelo.aplicar_pcas(treino, pcas)
-    cols = modelo.colunas_completas(treino)
+    cols = colunas or modelo.colunas_completas(treino, variante)
     ponto, n_ponto = modelo.treinar_lgbm(treino, cols, params, n_arvores=arvores.get("ponto"))
-    catboost, n_cat = modelo.treinar_catboost(treino, cols, arvores.get("catboost"))
+    catboost, n_cat = (
+        modelo.treinar_catboost(treino, cols, arvores.get("catboost")) if com_catboost else (None, None)
+    )
     quantis, n_arvores = {}, {"ponto": n_ponto, "catboost": n_cat}
     for q in QUANTIS:
         pq = {
@@ -90,9 +100,16 @@ def treinar(treino: pd.DataFrame, params: dict | None = None, arvores: dict | No
         }
         quantis[q], n_arvores[q] = modelo.treinar_lgbm(treino, cols, pq, metrica="quantile",
                                                        n_arvores=arvores.get(q))
-    ood = [c for p in ESPACO_OOD for c in pcas[p]["nomes"]]
+    ood = [c for p in ESPACO_OOD if p in pcas for c in pcas[p]["nomes"] if c in cols]
     z = treino[ood].dropna()
-    escala = StandardScaler().fit(z)
+    espaco = None
+    if ood and len(z) > K_VIZINHOS:
+        escala = StandardScaler().fit(z)
+        espaco = {
+            "colunas": ood,
+            "escala": escala,
+            "vizinhos": NearestNeighbors(n_neighbors=K_VIZINHOS).fit(escala.transform(z)),
+        }
     return {
         "colunas": cols,
         "categorias": {c: list(treino[c].cat.categories) for c in modelo.CATEGORICAS if c in cols},
@@ -103,11 +120,8 @@ def treinar(treino: pd.DataFrame, params: dict | None = None, arvores: dict | No
         "n_arvores": n_ponto,
         "arvores": n_arvores,
         "quantis": quantis,
-        "ood": {
-            "colunas": ood,
-            "escala": escala,
-            "vizinhos": NearestNeighbors(n_neighbors=K_VIZINHOS).fit(escala.transform(z)),
-        },
+        "ood": espaco,
+        "variante": variante,
         "setores_treino": sorted(treino.setor.astype(str).unique()),
         "periodo_treino": [str(treino.published_at.min().date()), str(treino.published_at.max().date())],
         "limiares": {
@@ -136,7 +150,10 @@ def _x_catboost(x: pd.DataFrame) -> pd.DataFrame:
 
 
 def prever_ponto(art: dict, x: pd.DataFrame) -> np.ndarray:
-    """Alvo relativo previsto: média do LightGBM e do CatBoost."""
+    """Alvo relativo previsto: média do LightGBM e do CatBoost (só o LightGBM num modelo de cliente sem
+    CatBoost)."""
+    if art.get("ponto_catboost") is None:
+        return art["ponto"].predict(x)
     return (art["ponto"].predict(x) + art["ponto_catboost"].predict(_x_catboost(x))) / 2
 
 
@@ -146,6 +163,8 @@ def contribuicoes(art: dict, x: pd.DataFrame) -> np.ndarray:
     from catboost import Pool
 
     lgbm = art["ponto"].predict(x, pred_contrib=True)
+    if art.get("ponto_catboost") is None:
+        return lgbm
     xc = _x_catboost(x)
     cats = [c for c in xc.columns if c in modelo.CATEGORICAS]
     cat = art["ponto_catboost"].get_feature_importance(Pool(xc, cat_features=cats), type="ShapValues")
@@ -166,6 +185,8 @@ def distancia_ood(art: dict, x: pd.DataFrame) -> np.ndarray:
     """Distância ao 10º vizinho do treino no espaço padronizado dos PCAs (NaN se faltar embedding)."""
     o = art["ood"]
     d = np.full(len(x), np.nan)
+    if o is None:  # modelo sem embeddings de texto nem de imagem: a regra não se aplica
+        return d
     z = x.reindex(columns=o["colunas"])
     ok = z.notna().all(axis=1).to_numpy()
     if ok.any():
@@ -189,7 +210,9 @@ def calibrar(art: dict, calib: pd.DataFrame) -> dict:
     art["limiares"].update(
         {
             "largura_larga": float(np.percentile(p.alvo_alto - p.alvo_baixo, PERCENTIL_LARGURA)),
-            "distancia_ood": float(np.nanpercentile(distancia_ood(art, x), PERCENTIL_OOD)),
+            "distancia_ood": (
+                float(np.nanpercentile(distancia_ood(art, x), PERCENTIL_OOD)) if art["ood"] else float("nan")
+            ),
             "ultima_data_vista": str(calib.published_at.max().date()),
             "max_dias_futuro": MAX_DIAS_FUTURO,
             "max_dias_passado": MAX_DIAS_PASSADO,
@@ -259,10 +282,11 @@ def motivos_em_lote(art: dict, df: pd.DataFrame, x: pd.DataFrame, p: pd.DataFram
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--versao", default=VERSAO)
+    ap.add_argument("--variante", default="v1", choices=list(modelo.VARIANTES))
     args = ap.parse_args()
-    df = modelo.carregar()
+    df = modelo.carregar(rag=modelo.VARIANTES[args.variante]["rag"])
     treino, valid = df[df.split == "treino"].copy(), df[df.split == "validacao"].copy()
-    dev = calibrar(treinar(treino), valid)
+    dev = calibrar(treinar(treino, variante=args.variante), valid)
 
     x = preparar(valid, dev)
     p = prever(dev, x)
@@ -286,7 +310,7 @@ def main():
 
     final = pd.concat([treino, valid])
     # refit: mesmos hiperparâmetros e mesmo número de árvores escolhidos na validação (aula 3.4)
-    art = treinar(final, dev["params"], dev["arvores"])
+    art = treinar(final, dev["params"], dev["arvores"], variante=args.variante)
     art["cqr"], art["calibracao"] = dev["cqr"], dev["calibracao"]
     art["limiares"].update({k: v for k, v in dev["limiares"].items() if k not in art["limiares"]})
     art.update(

@@ -88,3 +88,10 @@ def test_bootstrap_reproduz_a_diferenca_pontual_e_cobre_zero_para_modelos_iguais
         assert b[k]["diferenca"] == pytest.approx(r1[k] - r0[k])
     igual = bootstrap_diferenca(y, p1, p1, canal, datas, replicas=100)
     assert igual["mae_log"]["ic95"] == (0.0, 0.0)
+
+
+def test_interval_score_penaliza_largura_e_o_que_fica_fora():
+    from galaxies_tool.metricas import interval_score
+
+    assert interval_score([0.0], [-1.0], [1.0]) == 2.0  # cobre: só a largura
+    assert interval_score([2.0], [-1.0], [1.0]) == 2.0 + 10 * 1.0  # fora por 1: + 2/0,2 × 1

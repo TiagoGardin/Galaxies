@@ -80,6 +80,32 @@ def _embeddings() -> tuple[list[str], np.ndarray, np.ndarray]:
     return list(ids), txt.loc[ids].to_numpy(), img.loc[ids].to_numpy()
 
 
+@lru_cache(maxsize=1)
+def pool_rag() -> tuple[pd.DataFrame, np.ndarray]:
+    """Conjunto de busca das features RAG (variante v2): os vídeos-alvo da base com o alvo relativo e os
+    vetores de texto + thumbnail, os mesmos usados no treino (rag.features_da_base)."""
+    from galaxies_tool import rag
+
+    ids, txt, img = _embeddings()
+    pool = _alvos().reindex(ids).reset_index().rename(columns={"index": "video_id"})
+    return pool, rag.vetores(txt, img) if ids else np.zeros((0, 768), np.float32)
+
+
+def features_rag(atr: dict, planned: pd.Timestamp, setor: str, channel_id: str | None) -> dict:
+    """Features RAG de um criativo novo (mesma função do treino). Sem os embeddings da base, ficam NaN."""
+    from galaxies_tool import rag
+
+    pool, vp = pool_rag()
+    if pool.empty:
+        return dict.fromkeys(rag.COLUNAS, np.nan)
+    consulta = pd.DataFrame(
+        {"video_id": ["__novo__"], "channel_id": [channel_id or CANAL_EXTERNO], "setor": [setor],
+         "published_at": [planned]}
+    )
+    vq = rag.vetores_do_df(pd.DataFrame([atr]))
+    return rag.features_rag(consulta, vq, pool, vp).iloc[0].to_dict()
+
+
 def canal_conhecido(channel_id: str) -> bool:
     return bool((_base().channel_id == channel_id).any())
 

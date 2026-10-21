@@ -73,7 +73,9 @@ def main():
     args = ap.parse_args()
     if TRAVA.exists() and not args.forcar:
         raise SystemExit(f"O teste já foi avaliado ({TRAVA.read_text().strip()}). Ver docstring.")
-    art = previsao.carregar_artefato(str(previsao.caminho_padrao()))
+    # sempre a v1: é o artefato que o protocolo congelou para o teste (a v2 foi escolhida depois dele e só é
+    # medida no teste prospectivo); --forcar reproduz os números de 19/10, nunca avalia outro modelo
+    art = previsao.carregar_artefato(str(previsao.V1))
     params = art["params"]
     df = modelo.carregar()
     treino = df[df.split.isin(["treino", "validacao"])].copy()  # como o modelo final (artefato.py)

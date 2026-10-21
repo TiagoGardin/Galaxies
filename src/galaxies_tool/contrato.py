@@ -49,6 +49,12 @@ class EntradaCriativo(BaseModel):
     channel_stats: ChannelStats | None = None
     sector: Setor
     id: str | None = Field(default=None, description="Rótulo do criativo para o ranking (opcional)")
+    modelo: str | None = Field(
+        default=None,
+        pattern=r"^[a-z0-9][a-z0-9_-]{0,63}$",
+        description="Modelo especialista treinado com a base de um cliente (treinar_modelo_cliente); "
+        "vazio = modelo principal (YouTube Shorts de moda e beleza)",
+    )
     analisar_video: bool = Field(
         default=True,
         description="Vídeo (URL ou arquivo): baixa/mede o vídeo e chama o VLM (~1 min no 1º uso do vídeo). "
@@ -149,3 +155,28 @@ class RankingCriativos(BaseModel):
     ranking: list[ItemRanking]
     previsoes: list[PrevisaoCriativo]
     explanation: str
+
+
+class RelatorioTreino(BaseModel):
+    """Saída do treino dinâmico (treino_cliente.py): o que entrou, como foi dividido e quanto o modelo do
+    cliente erra no teste do próprio cliente, contra a mediana do canal."""
+
+    nome: str
+    modelo: str = Field(description="Caminho do artefato; use `modelo: <nome>` em prever_criativo")
+    criado_em: str
+    n_posts: int
+    n_canais: int
+    funil: dict[str, int] = Field(description="Posts → maduros (>= 30 dias) → com 5 de histórico no canal")
+    periodo: list[str]
+    cortes: dict[str, str] = Field(description="Datas dos cortes temporais treino | validação | teste")
+    n_por_split: dict[str, int]
+    features: list[str]
+    metricas_teste: dict[str, dict[str, float | None]] = Field(
+        description="Modelo e baselines no teste do cliente (avaliado uma vez)"
+    )
+    ganho_vs_mediana_do_canal: dict[str, str] = Field(
+        description="Diferença modelo − mediana do canal, com IC 95% por bootstrap de canais"
+    )
+    principais_fatores: list[str]
+    cobertura_crua_na_validacao: float
+    avisos: list[str]

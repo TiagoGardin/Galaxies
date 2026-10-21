@@ -8,7 +8,8 @@ Configuração num cliente MCP (ex.: Claude Desktop, Claude Code ou o agente da 
     {"command": "uv", "args": ["run", "--directory", "<repositório>", "python", "-m",
                                "galaxies_tool.servidor_mcp"]}
 
-Tools: prever_criativo, ordenar_criativos e what_if_horarios (mesmo contrato de galaxies_tool.contrato).
+Tools: prever_criativo, ordenar_criativos, what_if_horarios, what_if_legendas e treinar_modelo_cliente (mesmo
+contrato de galaxies_tool.contrato).
 """
 
 import json
@@ -20,7 +21,7 @@ from pathlib import Path
 from mcp.server.mcpserver import MCPServer
 
 from galaxies_tool import agente, modelo, previsao
-from galaxies_tool.contrato import EntradaCriativo, PrevisaoCriativo, RankingCriativos
+from galaxies_tool.contrato import EntradaCriativo, PrevisaoCriativo, RankingCriativos, RelatorioTreino
 
 os.chdir(Path(__file__).resolve().parents[2])  # dados e modelos usam caminhos relativos à raiz do repositório
 
@@ -32,6 +33,8 @@ mcp = MCPServer(
         "de um modelo (LightGBM + CatBoost) treinado em ~27 mil Shorts brasileiros (04/2025 a 07/2026); "
         "use-o para comparar criativos, não como promessa. Cite os números exatamente como devolvidos. "
         "Se confidence_flag for true, diga isso antes do número, com os motivos de confidence_reasons. "
+        "Com a base de posts de um cliente, treinar_modelo_cliente cria um modelo especialista "
+        "(use o nome dele no campo `modelo`). "
         "O recurso modelo://card "
         "traz as métricas e os limites do modelo."
     ),
@@ -69,9 +72,20 @@ def model_card() -> str:
     """O que a persona precisa saber antes de citar um número: de onde ele vem e quanto ele erra."""
     caminho = previsao.caminho_padrao().with_suffix(".json")
     card = json.loads(caminho.read_text())
+    versao = card["versao"]
+    if aviso := previsao.aviso_modelo():
+        card["aviso"] = aviso
     teste = modelo.RESULTADOS / "teste_resumo.json"
-    if teste.exists():
-        card["avaliacao_teste"] = json.loads(teste.read_text()).get("principal")
+    if versao == "lgbm_final" and teste.exists():  # o teste temporal mediu só a v1
+        card["avaliacao_teste_temporal"] = json.loads(teste.read_text()).get("principal")
+    prosp = modelo.RESULTADOS / "prospectivo_principal_resumo.json"
+    if prosp.exists():  # teste prospectivo (vídeos de 12/09 a 21/09/2026), avaliado uma vez com v1 e v2
+        r = json.loads(prosp.read_text())
+        chave = {"lgbm_final": "v1", "lgbm_v2": "v2"}.get(versao)
+        card["avaliacao_teste_prospectivo"] = {
+            conj: {m: r[conj]["modelos"][m] for m in (chave, "baseline_mediana_canal") if m}
+            for conj in ("canais vistos", "canais novos") if conj in r
+        }
     return json.dumps(card, ensure_ascii=False, default=str)
 
 
@@ -82,6 +96,33 @@ def what_if_horarios(entrada: EntradaCriativo, horarios: list[datetime]) -> list
     O primeiro item é o horário original da entrada.
     """
     return agente.what_if_horarios(entrada, horarios)
+
+
+@mcp.tool()
+def what_if_legendas(entrada: EntradaCriativo, legendas: list[str]) -> list[dict]:
+    """Re-pontua o mesmo criativo (mesma imagem, vídeo e canal) com outras legendas planejadas.
+
+    O primeiro item é a legenda original. Diferenças pequenas entre legendas ficam dentro do erro do modelo:
+    compare as razões previstas, não prometa o número.
+    """
+    return agente.what_if_legendas(entrada, legendas)
+
+
+@mcp.tool()
+def treinar_modelo_cliente(
+    caminho_base: str, nome: str, usar_midia: bool = False, coletado_em: datetime | None = None
+) -> RelatorioTreino:
+    """Treina e avalia um modelo especialista com a base de posts de um cliente (treino dinâmico).
+
+    `caminho_base`: CSV ou Parquet no esquema mínimo (post_id, channel_id, published_at, caption, media_ref,
+    metric_target, channel_stats_at_collection, sector), no computador onde o servidor roda. `nome`: letras
+    minúsculas, números, '-' e '_'. Leva alguns minutos (com `usar_midia`, ~1 s por post a mais). Depois, use
+    `"modelo": "<nome>"` na entrada de prever_criativo. O relatório traz o erro no teste do próprio cliente
+    contra a mediana do canal, com IC 95%, e avisos (ex.: deriva).
+    """
+    from galaxies_tool.treino_cliente import treinar_modelo_cliente as treinar
+
+    return treinar(caminho_base, nome, usar_midia, coletado_em)
 
 
 if __name__ == "__main__":

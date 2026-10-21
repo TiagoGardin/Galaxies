@@ -360,9 +360,11 @@ def servidor():
     Tudo o que as bibliotecas imprimirem vai para o stderr, para não misturar com as respostas."""
     resposta = os.fdopen(os.dup(1), "w")
     os.dup2(2, 1)
+    funcoes = {"extrair": extrair, "texto": atributos_texto}
     for linha in sys.stdin:
         try:
-            r = {"ok": extrair(**json.loads(linha))}
+            pedido = json.loads(linha)
+            r = {"ok": funcoes[pedido.pop("funcao", "extrair")](**pedido)}
         except Exception as e:  # noqa: BLE001 — o erro volta para quem chamou
             r = {"erro": f"{type(e).__name__}: {e}"}
         resposta.write(json.dumps(r, default=_para_json) + "\n")
@@ -382,7 +384,6 @@ def extrair_isolado(
 ) -> dict:
     """`extrair` num subprocesso que fica vivo entre chamadas (ver docstring do módulo).
     A 1ª chamada carrega os modelos (~30 s); vídeo novo leva ~1 min (download, Whisper e VLM)."""
-    global _processo
     pedido = {
         "creative": creative,
         "caption": caption,
@@ -390,6 +391,16 @@ def extrair_isolado(
         "tags": list(tags or []),
         "analisar_video": analisar_video,
     }
+    return _pedir(pedido)
+
+
+def texto_isolado(titulo: str, descricao: str = "", tags: list[str] | None = None) -> dict:
+    """Só o bloco B (flags e embedding do texto), no mesmo subprocesso: usado pelo what-if de legenda."""
+    return _pedir({"funcao": "texto", "titulo": titulo, "descricao": descricao, "tags": list(tags or [])})
+
+
+def _pedir(pedido: dict) -> dict:
+    global _processo
     with _trava:  # um pedido por vez no mesmo pipe
         if _processo is None or _processo.poll() is not None:
             _processo = subprocess.Popen(

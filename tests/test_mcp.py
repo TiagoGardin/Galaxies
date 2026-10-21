@@ -28,7 +28,13 @@ def test_servidor_lista_tools_e_recurso_do_model_card():
         return tools, recursos, s.instructions if hasattr(s, "instructions") else ""
 
     tools, recursos, _ = asyncio.run(_sessao(fn))
-    assert tools == {"prever_criativo", "ordenar_criativos", "what_if_horarios"}
+    assert tools == {
+        "prever_criativo",
+        "ordenar_criativos",
+        "what_if_horarios",
+        "what_if_legendas",
+        "treinar_modelo_cliente",
+    }
     assert "modelo://card" in recursos
 
 

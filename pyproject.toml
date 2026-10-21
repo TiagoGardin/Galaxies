@@ -45,6 +45,9 @@ packages = ["src/galaxies_tool"]
 line-length = 110
 
 [dependency-groups]
+app = [
+    "streamlit>=1.66.0",
+]
 dev = [
     "pytest>=9.1.1",
 ]

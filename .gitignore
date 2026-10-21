@@ -15,6 +15,9 @@ models/*
 # o artefato final é versionado: o agente e o servidor MCP rodam sem retreinar (11 MB)
 !models/lgbm_final.joblib
 !models/lgbm_final.json
+# a v2 (servida desde 21/10/2026) também
+!models/lgbm_v2.joblib
+!models/lgbm_v2.json
 
 # Python
 __pycache__/
@@ -39,3 +42,7 @@ data/features/*_log.txt
 
 # Artefatos de treino do CatBoost
 catboost_info/
+
+# Teste prospectivo: atributos por vídeo em JSON (60 MB; versionados juntos em atributos_*.parquet) e logs
+data/prospectivo/atributos/
+data/prospectivo/*_log.txt

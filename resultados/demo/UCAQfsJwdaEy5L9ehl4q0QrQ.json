@@ -3,31 +3,31 @@
     {
       "posicao": 1,
       "id": "OStJYQpwN8w",
-      "predicted_metric": 707,
-      "interval_low": 238,
-      "interval_high": 4274,
-      "razao_prevista": 0.82,
+      "predicted_metric": 777,
+      "interval_low": 242,
+      "interval_high": 5058,
+      "razao_prevista": 0.9,
       "faixa": "na_media",
       "confidence_flag": false,
-      "prob_superar_seguinte": 0.61
+      "prob_superar_seguinte": 0.65
     },
     {
       "posicao": 2,
       "id": "8CYCMKmh55I",
-      "predicted_metric": 465,
-      "interval_low": 144,
-      "interval_high": 2383,
-      "razao_prevista": 0.54,
+      "predicted_metric": 410,
+      "interval_low": 141,
+      "interval_high": 3155,
+      "razao_prevista": 0.48,
       "faixa": "abaixo",
-      "confidence_flag": true,
-      "prob_superar_seguinte": 0.55
+      "confidence_flag": false,
+      "prob_superar_seguinte": 0.53
     },
     {
       "posicao": 3,
       "id": "aNEs_mSlsvY",
-      "predicted_metric": 373,
-      "interval_low": 122,
-      "interval_high": 2864,
+      "predicted_metric": 368,
+      "interval_low": 135,
+      "interval_high": 2666,
       "razao_prevista": 0.43,
       "faixa": "abaixo",
       "confidence_flag": false,
@@ -38,15 +38,15 @@
     {
       "id": "OStJYQpwN8w",
       "metric": "curtidas",
-      "predicted_metric": 707,
-      "interval_low": 238,
-      "interval_high": 4274,
+      "predicted_metric": 777,
+      "interval_low": 242,
+      "interval_high": 5058,
       "interval_level": 0.8,
       "confidence_flag": false,
       "confidence_reasons": [],
       "relative_to_channel": {
         "mediana_canal": 862.5,
-        "razao_prevista": 0.82,
+        "razao_prevista": 0.9,
         "faixa": "na_media"
       },
       "top_drivers": [
@@ -55,7 +55,7 @@
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "862 curtidas (mediana)",
           "efeito": "reduz",
-          "impacto_pct": -13.4,
+          "impacto_pct": -12.0,
           "bloco": "A (canal e contexto)"
         },
         {
@@ -63,50 +63,51 @@
           "descricao": "Duração do vídeo",
           "valor": "36 s",
           "efeito": "reduz",
-          "impacto_pct": -11.5,
+          "impacto_pct": -10.8,
           "bloco": "A (canal e contexto)"
+        },
+        {
+          "atributo": "rag_canal_alvo",
+          "descricao": "Desempenho de Shorts parecidos do próprio canal",
+          "valor": "2,29× a mediana do canal",
+          "efeito": "aumenta",
+          "impacto_pct": 9.3,
+          "bloco": "R (comparáveis)"
         },
         {
           "atributo": "shorts_ult_30d",
           "descricao": "Shorts publicados pelo canal nos 30 dias anteriores",
           "valor": "1",
           "efeito": "reduz",
-          "impacto_pct": -8.4,
+          "impacto_pct": -5.2,
           "bloco": "A (canal e contexto)"
         },
         {
-          "atributo": "emb_gancho",
-          "descricao": "Visual dos primeiros 3 segundos (gancho)",
-          "valor": "—",
+          "atributo": "rag_canal_sim",
+          "descricao": "Semelhança com Shorts anteriores do canal",
+          "valor": "0,86",
           "efeito": "aumenta",
-          "impacto_pct": 6.4,
-          "bloco": "C (vídeo e áudio)"
-        },
-        {
-          "atributo": "cortes_por_segundo",
-          "descricao": "Ritmo de cortes de cena",
-          "valor": "0,03",
-          "efeito": "reduz",
-          "impacto_pct": -5.2,
-          "bloco": "C (vídeo e áudio)"
+          "impacto_pct": 4.6,
+          "bloco": "R (comparáveis)"
         },
         {
           "atributo": "emb_texto",
           "descricao": "Tema e estilo da legenda",
           "valor": "—",
           "efeito": "aumenta",
-          "impacto_pct": 5.0,
+          "impacto_pct": 3.9,
           "bloco": "B (texto)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": -29.6,
-        "B (texto)": 12.8,
-        "C (imagem de capa)": 4.5,
-        "C (vídeo e áudio)": 0.9,
-        "D (VLM)": -0.1
+        "A (canal e contexto)": -25.2,
+        "B (texto)": 6.3,
+        "C (imagem de capa)": 4.1,
+        "C (vídeo e áudio)": -0.9,
+        "D (VLM)": -1.2,
+        "R (comparáveis)": 13.2
       },
-      "explanation": "A previsão para este vídeo é de 707 curtidas, com intervalo estimado entre 238 e 4.274 curtidas (80% de confiança). Esse resultado fica na média do canal, representando cerca de 0,82 vezes a mediana recente de 862 curtidas. Principais fatores: patamar de curtidas recente do canal: Este fator é um contexto do histórico recente do canal e não do criativo em si, estando associado a uma redução de cerca de 13% no potencial de curtidas; duração do vídeo: O tempo de 36 segundos está associado a uma diminuição de aproximadamente 12% na estimativa de curtidas; shorts publicados pelo canal nos 30 dias anteriores: Este fator reflete o histórico de frequência do canal, onde a publicação de apenas 1 vídeo no período anterior reduz a estimativa em cerca de 8%; visual dos primeiros 3 segundos (gancho): O visual inicial nos primeiros segundos do vídeo contribui positivamente, associado a um aumento de cerca de 6% no desempenho previsto. Os fatores apresentados indicam associações aprendidas pelo modelo e não representam relações diretas de causa e efeito comprovadas. Como referência prática do histórico, o conteúdo comparável 'Já me segue pra mais dicas como essas!' alcançou 7.061 curtidas (9,84 vezes a média do canal), demonstrando a variação real que pode ocorrer.",
+      "explanation": "A previsão é de 777 curtidas para este conteúdo, com um intervalo de confiança entre 242 e 5.058 curtidas. Este resultado coloca o vídeo na média do canal, com um desempenho 0,9 vezes o esperado para o canal. Principais fatores: patamar de curtidas recente do canal: O histórico recente do canal reduz o alcance em 12%; duração do vídeo: A duração de 36 s reduz o engajamento em 11%; desempenho de shorts parecidos do próprio canal: O histórico de Shorts similares aumenta a previsão em 9%; shorts publicados pelo canal nos 30 dias anteriores: A baixa frequência de publicações recentes reduz o impacto em 5%. Estas associações são aprendidas pelo modelo e não representam causas comprovadas. O desempenho pode variar, considerando que conteúdos comparáveis como 'Já me segue pra mais dicas como essas!' alcançaram 7.061 curtidas.",
       "comparables": [
         {
           "video_id": "Uy15iuScBnE",
@@ -224,89 +225,90 @@
         "setor": "beleza",
         "tipo_canal": "criador",
         "published_at": "2026-09-09T09:10-03:00",
+        "rag_canal_alvo": 0.8270768523650536,
+        "rag_canal_sim": 0.8600136637687683,
+        "rag_canal_recente": 0.33121217505658507,
+        "rag_setor_alvo": 0.2752274927661831,
         "tipo_criativo": "youtube",
         "partes_nao_analisadas": null,
-        "explicacao_fonte": "llm"
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     },
     {
       "id": "8CYCMKmh55I",
       "metric": "curtidas",
-      "predicted_metric": 465,
-      "interval_low": 144,
-      "interval_high": 2383,
+      "predicted_metric": 410,
+      "interval_low": 141,
+      "interval_high": 3155,
       "interval_level": 0.8,
-      "confidence_flag": true,
-      "confidence_reasons": [
-        {
-          "codigo": "extracao_incompleta",
-          "texto": "parte do criativo não pôde ser analisada (rubrica do VLM); a previsão usa só o restante"
-        }
-      ],
+      "confidence_flag": false,
+      "confidence_reasons": [],
       "relative_to_channel": {
         "mediana_canal": 862.5,
-        "razao_prevista": 0.54,
+        "razao_prevista": 0.48,
         "faixa": "abaixo"
       },
       "top_drivers": [
-        {
-          "atributo": "emb_texto",
-          "descricao": "Tema e estilo da legenda",
-          "valor": "—",
-          "efeito": "reduz",
-          "impacto_pct": -19.9,
-          "bloco": "B (texto)"
-        },
         {
           "atributo": "log_mediana_likes_ult20",
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "862 curtidas (mediana)",
           "efeito": "reduz",
-          "impacto_pct": -13.7,
+          "impacto_pct": -13.3,
           "bloco": "A (canal e contexto)"
+        },
+        {
+          "atributo": "rag_canal_sim",
+          "descricao": "Semelhança com Shorts anteriores do canal",
+          "valor": "0,60",
+          "efeito": "reduz",
+          "impacto_pct": -11.8,
+          "bloco": "R (comparáveis)"
+        },
+        {
+          "atributo": "emb_texto",
+          "descricao": "Tema e estilo da legenda",
+          "valor": "—",
+          "efeito": "reduz",
+          "impacto_pct": -10.8,
+          "bloco": "B (texto)"
         },
         {
           "atributo": "duracao_s",
           "descricao": "Duração do vídeo",
           "valor": "44 s",
           "efeito": "reduz",
-          "impacto_pct": -11.2,
+          "impacto_pct": -9.9,
           "bloco": "A (canal e contexto)"
         },
         {
-          "atributo": "emb_thumb",
-          "descricao": "Estilo visual da imagem de capa",
-          "valor": "—",
-          "efeito": "aumenta",
-          "impacto_pct": 12.1,
-          "bloco": "C (imagem de capa)"
+          "atributo": "rag_canal_alvo",
+          "descricao": "Desempenho de Shorts parecidos do próprio canal",
+          "valor": "0,78× a mediana do canal",
+          "efeito": "reduz",
+          "impacto_pct": -8.4,
+          "bloco": "R (comparáveis)"
         },
         {
           "atributo": "std_log_likes_ult20",
           "descricao": "Instabilidade das curtidas recentes do canal",
           "valor": "1,18",
           "efeito": "reduz",
-          "impacto_pct": -7.6,
-          "bloco": "A (canal e contexto)"
-        },
-        {
-          "atributo": "shorts_ult_30d",
-          "descricao": "Shorts publicados pelo canal nos 30 dias anteriores",
-          "valor": "2",
-          "efeito": "reduz",
-          "impacto_pct": -7.1,
+          "impacto_pct": -5.3,
           "bloco": "A (canal e contexto)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": -32.5,
-        "B (texto)": -22.7,
-        "C (imagem de capa)": 8.1,
-        "C (vídeo e áudio)": -2.5,
-        "D (VLM)": -0.0
+        "A (canal e contexto)": -27.7,
+        "B (texto)": -13.0,
+        "C (imagem de capa)": 3.0,
+        "C (vídeo e áudio)": 1.1,
+        "D (VLM)": -1.8,
+        "R (comparáveis)": -24.7
       },
-      "explanation": "A publicação tem uma previsão de 465 curtidas, com um intervalo estimado entre 144 e 2.383 curtidas. Esse resultado coloca o conteúdo na faixa abaixo da média do canal. Principais fatores: tema e estilo da legenda: Diminui a previsão em 20%; patamar de curtidas recente do canal: Diminui a previsão em 14% (fator que representa o contexto do histórico do canal, não do criativo); duração do vídeo: Diminui a previsão em 11%; estilo visual da imagem de capa: Aumenta a previsão em 12%. Baixa confiança: parte do criativo não pôde ser analisada (rubrica do VLM); a previsão usa só o restante. Como evidência, o conteúdo comparável 'Não sabe onde passar o contorno? Depois desse vídeo, isso não será mais um problema! #maquiagem' atingiu 580 curtidas. Os fatores indicados são apenas associações aprendidas pelo modelo, não relações de causa e efeito comprovadas.",
+      "explanation": "A previsão é de 410 curtidas para este conteúdo, com um intervalo de 141 a 3.155 curtidas. Esse resultado coloca o vídeo abaixo da média do canal, representando 0,48 vezes o desempenho habitual. Principais fatores: patamar de curtidas recente do canal: O histórico de desempenho do canal reduz a previsão em 13%; semelhança com shorts anteriores do canal: A similaridade com conteúdos passados reduz a previsão em 12%; tema e estilo da legenda: O estilo da legenda escolhida reduz a previsão em 11%; duração do vídeo: A duração de 44 s reduz a previsão em 10%. O vídeo 'Não sabe onde passar o contorno? Depois desse vídeo, isso não será mais um problema! #maquiagem', que obteve 580 curtidas, serve como evidência de um desempenho similar ao projetado.",
       "comparables": [
         {
           "video_id": "jagp55fZhWo",
@@ -391,6 +393,23 @@
         "tem_voz": true,
         "voz_por_segundo": 2.6254388326009264,
         "energia_rms": 0.07928001100837002,
+        "vlm_tem_rosto": true,
+        "vlm_close_up_produto": true,
+        "vlm_before_after_ou_transformacao": true,
+        "vlm_try_on_ou_demonstracao": true,
+        "vlm_swatch": true,
+        "vlm_aplicacao_na_pele": true,
+        "vlm_texto_na_tela": true,
+        "vlm_tem_musica_de_fundo": true,
+        "vlm_forca_hook_0a10": 9,
+        "vlm_densidade_texto_0a10": 6,
+        "vlm_ritmo_cortes_0a10": 7,
+        "vlm_estetica_geral_0a10": 8,
+        "vlm_clareza_beneficio_produto_0a10": 9,
+        "vlm_corpo_inteiro_vs_detalhe": "detalhe",
+        "vlm_audio_original_ou_musica": "ambos",
+        "vlm_tom_narracao": "instrucional",
+        "vlm_formato": "tutorial",
         "log_mediana_likes_ult20": 6.760993897586733,
         "mediana_likes_ult20": 862.5,
         "std_log_likes_ult20": 1.1794526192373715,
@@ -407,18 +426,23 @@
         "setor": "beleza",
         "tipo_canal": "criador",
         "published_at": "2026-09-10T09:40-03:00",
+        "rag_canal_alvo": -0.24224323811718101,
+        "rag_canal_sim": 0.6040515899658203,
+        "rag_canal_recente": 0.33121217505658507,
+        "rag_setor_alvo": -0.33668347961667616,
         "tipo_criativo": "youtube",
-        "partes_nao_analisadas": "rubrica do VLM",
-        "explicacao_fonte": "llm"
+        "partes_nao_analisadas": null,
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     },
     {
       "id": "aNEs_mSlsvY",
       "metric": "curtidas",
-      "predicted_metric": 373,
-      "interval_low": 122,
-      "interval_high": 2864,
+      "predicted_metric": 368,
+      "interval_low": 135,
+      "interval_high": 2666,
       "interval_level": 0.8,
       "confidence_flag": false,
       "confidence_reasons": [],
@@ -429,62 +453,63 @@
       },
       "top_drivers": [
         {
-          "atributo": "emb_texto",
-          "descricao": "Tema e estilo da legenda",
-          "valor": "—",
-          "efeito": "reduz",
-          "impacto_pct": -21.7,
-          "bloco": "B (texto)"
-        },
-        {
           "atributo": "log_mediana_likes_ult20",
           "descricao": "Patamar de curtidas recente do canal",
           "valor": "862 curtidas (mediana)",
           "efeito": "reduz",
-          "impacto_pct": -14.4,
+          "impacto_pct": -13.4,
           "bloco": "A (canal e contexto)"
+        },
+        {
+          "atributo": "rag_canal_sim",
+          "descricao": "Semelhança com Shorts anteriores do canal",
+          "valor": "0,60",
+          "efeito": "reduz",
+          "impacto_pct": -12.0,
+          "bloco": "R (comparáveis)"
+        },
+        {
+          "atributo": "emb_texto",
+          "descricao": "Tema e estilo da legenda",
+          "valor": "—",
+          "efeito": "reduz",
+          "impacto_pct": -10.7,
+          "bloco": "B (texto)"
         },
         {
           "atributo": "duracao_s",
           "descricao": "Duração do vídeo",
           "valor": "46 s",
           "efeito": "reduz",
-          "impacto_pct": -11.5,
+          "impacto_pct": -10.6,
           "bloco": "A (canal e contexto)"
         },
         {
-          "atributo": "std_log_likes_ult20",
-          "descricao": "Instabilidade das curtidas recentes do canal",
-          "valor": "1,18",
+          "atributo": "rag_canal_alvo",
+          "descricao": "Desempenho de Shorts parecidos do próprio canal",
+          "valor": "0,76× a mediana do canal",
           "efeito": "reduz",
-          "impacto_pct": -8.0,
-          "bloco": "A (canal e contexto)"
+          "impacto_pct": -9.0,
+          "bloco": "R (comparáveis)"
         },
         {
-          "atributo": "shorts_ult_30d",
-          "descricao": "Shorts publicados pelo canal nos 30 dias anteriores",
-          "valor": "3",
+          "atributo": "rag_setor_alvo",
+          "descricao": "Desempenho de Shorts parecidos de outros canais do setor",
+          "valor": "0,54× a mediana do canal",
           "efeito": "reduz",
-          "impacto_pct": -7.1,
-          "bloco": "A (canal e contexto)"
-        },
-        {
-          "atributo": "cortes_por_segundo",
-          "descricao": "Ritmo de cortes de cena",
-          "valor": "0,00",
-          "efeito": "reduz",
-          "impacto_pct": -5.5,
-          "bloco": "C (vídeo e áudio)"
+          "impacto_pct": -5.9,
+          "bloco": "R (comparáveis)"
         }
       ],
       "contribuicao_por_bloco": {
-        "A (canal e contexto)": -33.9,
-        "B (texto)": -25.0,
-        "C (imagem de capa)": 0.6,
-        "C (vídeo e áudio)": -9.6,
-        "D (VLM)": -2.1
+        "A (canal e contexto)": -28.1,
+        "B (texto)": -12.9,
+        "C (imagem de capa)": 2.4,
+        "C (vídeo e áudio)": -5.4,
+        "D (VLM)": -1.2,
+        "R (comparáveis)": -27.3
       },
-      "explanation": "Previsão: 373 curtidas (intervalo de 80%: 122 a 2.864), 0,43× a mediana recente do canal (862), ou seja, abaixo da média do canal. Principais fatores: tema e estilo da legenda = — (reduz ~22%); patamar de curtidas recente do canal = 862 curtidas (mediana) (reduz ~14%); duração do vídeo = 46 s (reduz ~12%); instabilidade das curtidas recentes do canal = 1,18 (reduz ~8%). Os fatores são associações aprendidas pelo modelo, não causas comprovadas.",
+      "explanation": "A previsão é de 368 curtidas para este conteúdo, com um intervalo entre 135 e 2.666 curtidas. Esse resultado coloca o vídeo abaixo da média do canal, representando 43% do desempenho habitual. Principais fatores: patamar de curtidas recente do canal: O histórico recente do canal reduz a expectativa em 13%; semelhança com shorts anteriores do canal: A similaridade com conteúdos passados reduz a previsão em 12%; tema e estilo da legenda: O estilo da legenda contribui para uma redução de 11% na estimativa; duração do vídeo: A duração de 46 s impacta negativamente a previsão em 11%. Como referência, o vídeo 'Não sabe onde passar o contorno? Depois desse vídeo, isso não será mais um problema! #maquiagem' obteve 580 curtidas, mantendo um desempenho de 0,41 vezes a mediana do canal.",
       "comparables": [
         {
           "video_id": "jagp55fZhWo",
@@ -602,12 +627,17 @@
         "setor": "beleza",
         "tipo_canal": "criador",
         "published_at": "2026-09-11T09:30-03:00",
+        "rag_canal_alvo": -0.2732576674117733,
+        "rag_canal_sim": 0.5961626768112183,
+        "rag_canal_recente": 0.33121217505658507,
+        "rag_setor_alvo": -0.6243266876465249,
         "tipo_criativo": "youtube",
         "partes_nao_analisadas": null,
-        "explicacao_fonte": "padrao"
+        "explicacao_fonte": "llm",
+        "explicacao_reprovacoes": null
       },
-      "modelo_versao": "lgbm_final"
+      "modelo_versao": "lgbm_v2"
     }
   ],
-  "explanation": "O criativo OStJYQpwN8w deve render mais, com estimativa de 707 curtidas (intervalo de 238 a 4274), superando o 8CYCMKmh55I, que tem 465 curtidas (intervalo de 144 a 2383), e o aNEs_mSlsvY, com 373 curtidas (intervalo de 122 a 2864). No entanto, como esses intervalos de curtidas se sobrepõem, a vantagem real entre eles é incerta. O principal fator que separa o primeiro colocado dos concorrentes é o ganho com o \"Visual dos primeiros 3 segundos (gancho)\" de 6,4%, além de não ter a penalização de \"Tema e estilo da legenda\", que reduziu o desempenho dos demais em 19,9% e 21,7%. Por fim, vale ressaltar que o criativo 8CYCMKmh55I possui baixa confiança na previsão, pois parte do material não pôde ser analisada."
+  "explanation": "O criativo de ID \"OStJYQpwN8w\" deve render mais, com previsão de 777 curtidas e um intervalo de 242 a 5058. O principal diferencial que o coloca à frente é o desempenho de Shorts parecidos do próprio canal, que impulsiona o resultado em 9,3%, enquanto os demais sofrem impactos negativos por semelhança com conteúdos anteriores. Como os intervalos de curtidas de todos os criativos se sobrepõem significativamente, a diferença real de desempenho entre eles permanece incerta. Não há alertas de baixa confiança para nenhum dos vídeos analisados."
 }
