@@ -23,6 +23,7 @@ from datetime import datetime
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, Field
 
 from galaxies_tool import agente, previsao
@@ -61,6 +62,11 @@ def _executar(fn, *args):
         return fn(*args)
     except (ValueError, FileNotFoundError) as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
+
+
+@app.get("/", include_in_schema=False)
+def raiz() -> RedirectResponse:
+    return RedirectResponse("/docs")
 
 
 @app.get("/saude")

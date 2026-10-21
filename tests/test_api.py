@@ -47,3 +47,8 @@ def test_predict_devolve_o_contrato():
     assert r.status_code == 200
     s = r.json()
     assert s["interval_low"] <= s["predicted_metric"] <= s["interval_high"] and s["explanation"]
+
+
+def test_raiz_leva_para_a_documentacao():
+    r = cliente.get("/", follow_redirects=False)
+    assert r.status_code in (302, 307) and r.headers["location"] == "/docs"
