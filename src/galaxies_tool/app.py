@@ -205,7 +205,8 @@ def cartao(p: dict, posicao: int | None = None, criativo: str | None = None, rea
         esq, dir_ = st.columns([1, 2.6], gap="large") if (vid and mostrar_video) else (None, st.container())
         if esq is not None:
             with esq:
-                st.video(f"https://www.youtube.com/shorts/{vid}")
+                # player embutido do YouTube em pé (o st.video não aceita links /shorts/)
+                st.iframe(f"https://www.youtube.com/embed/{vid}?rel=0", height=470)
         with dir_:
             a, b = st.columns([1, 1])
             with a:
@@ -265,15 +266,49 @@ def rodar_criativo(entrada: dict) -> dict:
     return saida.model_dump(mode="json")
 
 
+# ---------------------------------------------------------------- tema claro/escuro
+
+TEMAS = {  # mesmas cores da paleta validada, com os passos de cada modo
+    "Claro": {"base": "light", "primaryColor": "#2a78d6", "backgroundColor": "#fcfcfb",
+              "secondaryBackgroundColor": "#f3f2ef", "textColor": "#1b1b1a"},
+    "Escuro": {"base": "dark", "primaryColor": "#3987e5", "backgroundColor": "#1a1a19",
+               "secondaryBackgroundColor": "#262624", "textColor": "#f0efec"},
+}
+
+
+def aplicar_tema(tema: str):
+    """Troca o tema da sessão (opções de tema do Streamlit) e recarrega a página uma vez."""
+    if st.session_state.get("tema_aplicado") == tema:
+        return
+    for chave, valor in TEMAS[tema].items():
+        st._config.set_option(f"theme.{chave}", valor)
+    st.session_state["tema"] = st.session_state["tema_aplicado"] = tema
+    st.rerun()
+
+
 # ---------------------------------------------------------------- página
 
-cabecalho()
 with st.sidebar:
     st.markdown("### Modo")
-    modo = st.radio("Modo", ["Ao vivo", "Respostas salvas da demonstração (sem rede)"], label_visibility="collapsed")
-    mostrar_video = st.toggle("Mostrar os vídeos", True, help="Embute o player do YouTube (precisa de internet)")
+    modo = st.segmented_control(
+        "Modo", ["Ao vivo", "Demo salva"], default="Ao vivo", label_visibility="collapsed", width="stretch",
+        format_func=lambda m: {"Ao vivo": ":material/bolt: Ao vivo", "Demo salva": ":material/inventory_2: Demo salva"}[m],
+    ) or "Ao vivo"
+    st.caption("Ao vivo roda o agente agora; Demo salva reabre as respostas da demonstração, sem rede.")
+    st.markdown("### Exibição")
+    tema = st.segmented_control(
+        "Tema", ["Claro", "Escuro"], default=st.session_state.get("tema", "Claro"), width="stretch",
+        format_func=lambda t: {"Claro": ":material/light_mode: Claro", "Escuro": ":material/dark_mode: Escuro"}[t],
+    ) or "Claro"
+    mostrar_video = st.segmented_control(
+        "Vídeos", ["Mostrar", "Ocultar"], default="Mostrar", width="stretch",
+        format_func=lambda v: {"Mostrar": ":material/smart_display: Mostrar", "Ocultar": ":material/hide_source: Ocultar"}[v],
+        help="O player do YouTube precisa de internet",
+    ) != "Ocultar"
+aplicar_tema(tema)
+cabecalho()
 
-if modo.startswith("Respostas"):
+if modo == "Demo salva":
     arquivos = sorted(Path("resultados/demo").glob("UC*.json"))
     de_para = pd.read_csv("resultados/demo/de_para.csv")
     reais = dict(zip(de_para.video_id, de_para.real, strict=True))
@@ -304,9 +339,12 @@ else:
         canal = st.selectbox("Canal", c.index, format_func=lambda i: f"{c.titulo[i]} ({c.setor[i]})")
         dia = st.date_input("Data planejada", datetime.now().date(), format="DD/MM/YYYY")
         hora = st.time_input("Hora (Brasília)", time(18, 0))
-        analisar = st.toggle("Analisar o vídeo", True,
-                             help="Baixa o vídeo, transcreve e chama o VLM (~1 min por vídeo novo). Desligado: "
-                                  "só texto e imagem de capa, mais rápido e com menos confiança.")
+        analisar = st.segmented_control(
+            "Análise do criativo", ["Completa", "Rápida"], default="Completa", width="stretch",
+            format_func=lambda a: {"Completa": ":material/movie: Completa", "Rápida": ":material/speed: Rápida"}[a],
+            help="Completa: baixa o vídeo, transcreve e chama o VLM (~1 min por vídeo novo). Rápida: só texto e "
+                 "imagem de capa, com menos confiança.",
+        ) != "Rápida"
     st.divider()
     st.markdown("### Criativos")
     n = st.segmented_control("Quantos criativos comparar", [1, 2, 3, 4, 5], default=2) or 1
