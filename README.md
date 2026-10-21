@@ -21,6 +21,8 @@ Hoje, quando um time de marketing envia criativos para a Galaxies, as personas s
 - **Origem:** YouTube Data API v3, coleta própria (o caminho `channels` → playlist de uploads → `videos`, sem `search.list` para listar vídeos).
 - **Canais:** 260 canais brasileiros (169 de beleza e 91 de moda; 208 criadores e 52 marcas), selecionados a partir de sementes e de uma descoberta por busca, com verificação automática e revisão manual de cada canal, inclusive das thumbnails, para excluir repostagens, compilações e conteúdo gerado por IA.
 - **Volume (`base_v1`, coleta de 12/10/2026):** 79.402 Shorts, dos quais **40.865 são vídeos-alvo elegíveis** (01/04/2025 a 12/09/2026) em 258 canais e o restante serve de histórico. Split temporal: 22.430 treino, 4.774 validação, 4.861 teste, mais 1.146 vídeos de 51 canais nunca vistos.
+- **Teste prospectivo (coleta de 21/10/2026):** 1.114 Shorts publicados entre 12/09 e 21/09/2026, depois de todo o treino, com as curtidas de 21/10 (`data/prospectivo/`).
+- **Licença e termos:** dados públicos coletados dentro dos [Termos de Serviço da YouTube API](https://developers.google.com/youtube/terms/api-services-terms-of-service); a mídia (vídeos, áudios, thumbnails) nunca é redistribuída. Uso acadêmico; ver "Termos de uso e ética" no data card.
 
 Detalhes, filtros, esquema de colunas, termos de uso e vieses: [docs/DATA_CARD.md](docs/DATA_CARD.md)
 
@@ -36,14 +38,18 @@ criativo (URL do YouTube, vídeo/imagem local ou texto) + legenda + data planeja
    ├─ Tool 1  extrair_atributos → texto (regras + embedding), thumbnail (cor, rosto, OCR, SigLIP 2),
    │                              vídeo em 360p (cortes, movimento, Whisper, energia, gancho SigLIP 2)
    │                              e rubrica do VLM (Gemini)                     extracao.py, video.py, vlm.py
-   ├─ Tool 2  historico_canal   → bloco A (histórico só com Shorts ≥ 30 dias antes) + comparáveis   canal.py
+   ├─ Tool 2  historico_canal   → bloco A (histórico só com Shorts ≥ 30 dias antes) + comparáveis, cujo
+   │                              desempenho real vira feature na v2 (RAG)        canal.py, rag.py
    ├─ Tool 3  prever            → LightGBM + CatBoost: previsão + intervalo de 80% (quantis + CQR) + faixa
    │                              + confidence_flag com motivos codificados       previsao.py, artefato.py
    ├─ Tool 4  explicar          → SHAP por fator e por bloco + subagente explicador com validador
-   └─ Tool 5  ordenar           → ranking de vários criativos com P(A > B) e what-if de horário
+   └─ Tool 5  ordenar           → ranking de vários criativos com P(A > B) e what-if de horário e de legenda
         │
         ▼
  Saída validada com Pydantic (contrato.py) → função Python e servidor MCP (servidor_mcp.py)
+
+ Treino dinâmico (treino_cliente.py): base de um cliente no esquema mínimo do TAPI → modelo especialista,
+ avaliado com o mesmo protocolo e servido pelo mesmo agente ("modelo": "<nome>")
 ```
 
 - **Extração com as mesmas funções do treino:** a Tool 1 chama exatamente o código que gerou as features da base, inclusive o download em 360p; um teste confere que, para vídeos da validação, o agente reproduz as features e a previsão do modelo avaliado. A extração com redes neurais (PyTorch) roda num subprocesso persistente, porque o PyTorch e o LightGBM no mesmo processo derrubam o Python no macOS (dois OpenMP).
@@ -60,9 +66,9 @@ criativo (URL do YouTube, vídeo/imagem local ou texto) + legenda + data planeja
 | `sector`: `moda`, `beleza` ou `automotivo` (este último sinalizado) | `top_drivers`: fatores que mais pesaram, valor e efeito em % |
 | `analisar_video`: baixa o vídeo e chama o VLM (padrão: sim) | `explanation`: justificativa em linguagem natural |
 | `id`: rótulo do criativo no ranking | `comparables`: Shorts parecidos do histórico, com o desempenho real |
-| | `contribuicao_por_bloco`, `atributos_extraidos`, `modelo_versao` |
+| `modelo`: modelo especialista de um cliente (vazio = principal) | `contribuicao_por_bloco`, `atributos_extraidos`, `modelo_versao` |
 
-Tools do servidor MCP: `prever_criativo`, `ordenar_criativos` (ranking com a chance de cada criativo superar o seguinte) e `what_if_horarios`; recurso `modelo://card` com a versão, a calibração e as métricas do modelo.
+Tools do servidor MCP: `prever_criativo`, `ordenar_criativos` (ranking com a chance de cada criativo superar o seguinte), `what_if_horarios`, `what_if_legendas` e `treinar_modelo_cliente` (treino dinâmico com a base de um cliente); recurso `modelo://card` com a versão, a calibração e as métricas do modelo servido.
 
 ## 4. Instalação e execução
 
@@ -74,7 +80,7 @@ cp .env.example .env         # preencha YOUTUBE_API_KEY e GEMINI_API_KEY
 uv run pytest -m "not slow"  # testes rápidos (o marcador slow carrega os modelos de extração, ~1 min)
 ```
 
-**O que já vem no repositório:** a lista de canais revisada (`data/canais.csv`), a coleta bruta e a base processada (`data/raw/`, `data/processed/`), as features tabulares (`data/features/*.parquet`), as medidas de vídeo e as rubricas do VLM por vídeo (`data/features/video/`, `data/features/vlm/`) e as filas da amostra. Também vêm o artefato final do modelo (`models/lgbm_final.joblib`), para o agente e o servidor MCP rodarem sem retreinar, o embedding do gancho (`data/features/emb_gancho.npy`, que exigiria baixar os vídeos de novo) e as tabelas de resultado (`resultados/`). **O que não vem** (grande ou regenerável, ver `.gitignore`): os embeddings brutos de texto e thumbnail (`emb_texto.npy` e `emb_thumb.npy`, 60 MB cada; sem eles o agente funciona, mas não mostra comparáveis), a mídia baixada (`data/media/`) e o registro do MLflow (`mlruns/`, `mlflow.db`). Para reproduzir do zero, rode as etapas abaixo em ordem; cada uma tem cache e pode ser retomada.
+**O que já vem no repositório:** a lista de canais revisada (`data/canais.csv`), a coleta bruta e a base processada (`data/raw/`, `data/processed/`), as features tabulares (`data/features/*.parquet`), as medidas de vídeo e as rubricas do VLM por vídeo (`data/features/video/`, `data/features/vlm/`) e as filas da amostra. Também vêm os artefatos do modelo (`models/lgbm_v2.joblib`, o servido, e `models/lgbm_final.joblib`, a v1 avaliada no teste temporal), para o agente e o servidor MCP rodarem sem retreinar, o embedding do gancho (`data/features/emb_gancho.npy`, que exigiria baixar os vídeos de novo), a coleta e a tabela de atributos do teste prospectivo (`data/prospectivo/`), a base de exemplo do treino dinâmico (`data/exemplos/`) e as tabelas de resultado (`resultados/`). **O que não vem** (grande ou regenerável, ver `.gitignore`): os embeddings brutos de texto e thumbnail (`emb_texto.npy` e `emb_thumb.npy`, 60 MB cada; regenere com `embeddings_texto` e `thumbs siglip`). **Sem eles, o agente usa a v1** (a v2 precisa deles para as features de comparáveis), avisa isso em `atributos_extraidos.aviso_modelo` e no `modelo://card`, e não mostra comparáveis. Também não vêm a mídia baixada (`data/media/`) e o registro do MLflow (`mlruns/`, `mlflow.db`). Para reproduzir do zero, rode as etapas abaixo em ordem; cada uma tem cache e pode ser retomada.
 
 ```bash
 # 1. Base de dados (já executada; ver docs/DATA_CARD.md)
@@ -100,24 +106,38 @@ uv run python -m galaxies_tool.vlm                   # rubrica do VLM (~450 víd
 uv run python -m galaxies_tool.ajustar               # Optuna → configs/lgbm.yaml
 uv run python -m galaxies_tool.modelo                # baselines, ablação e "todos menos um", com IC → resultados/
 uv run python -m galaxies_tool.comparar_modelos      # LightGBM × CatBoost × XGBoost × Ridge (+ média)
-uv run python -m galaxies_tool.artefato              # artefato final: models/lgbm_final.joblib (+ .json)
+uv run python -m galaxies_tool.artefato              # artefato v1: models/lgbm_final.joblib (+ .json)
 uv run python -m galaxies_tool.avaliacao_final       # avaliação ÚNICA no teste → resultados/teste_*
+uv run python -m galaxies_tool.backtest              # backtest com origem móvel (treino + validação)
+uv run python -m galaxies_tool.artefato --versao lgbm_v2 --variante v2   # v2: PCA 32 + comparáveis (RAG)
+uv run python -m galaxies_tool.prospectivo coletar   # teste prospectivo: Shorts publicados depois da base
+uv run python -m galaxies_tool.prospectivo extrair [--video]             # Tool 1 do agente em cada vídeo
+uv run python -m galaxies_tool.prospectivo avaliar --parte principal     # avaliação ÚNICA de v1 e v2
 uv run mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001   # registro dos experimentos
 
 # 4. Agente
 uv run python -m galaxies_tool.demo                  # demonstração: canais fora do treino, previsto × real
 uv run python -m galaxies_tool.demo --salvas         # plano B: reimprime as respostas salvas, sem rede
+uv sync --group app && uv run streamlit run src/galaxies_tool/app.py   # interface opcional (ao vivo ou salvas)
 uv run python -m galaxies_tool.servidor_mcp          # servidor MCP (stdio); --http para HTTP em 127.0.0.1:8000
+
+# 5. Treino dinâmico (base de um cliente no esquema mínimo do TAPI)
+uv run python -m galaxies_tool.treino_cliente exemplo                    # base de exemplo: canais de marca
+uv run python -m galaxies_tool.treino_cliente treinar data/exemplos/base_cliente_marcas.parquet --nome marcas
 ```
 
 **Como função Python:**
 
 ```python
-from galaxies_tool.agente import prever_criativo, ordenar_criativos
-r = prever_criativo({"creative": "https://www.youtube.com/shorts/<id>", "caption": "3 makes em 30 s",
-                     "planned_datetime": "2026-10-20T18:00", "channel_id": "UC...", "sector": "beleza"})
+from galaxies_tool.agente import prever_criativo, ordenar_criativos, what_if_legendas
+entrada = {"creative": "https://www.youtube.com/shorts/<id>", "caption": "3 makes em 30 s",
+           "planned_datetime": "2026-10-20T18:00", "channel_id": "UC...", "sector": "beleza"}
+r = prever_criativo(entrada)
 print(r.predicted_metric, r.interval_low, r.interval_high, r.confidence_flag, r.explanation)
+what_if_legendas(entrada, ["Tutorial: make em 60 s", "Resenha sincera: vale a pena?"])  # mesma capa e vídeo
 ```
+
+**Interface opcional (Streamlit):** mostra cada tool do grafo terminando em tempo real, o ranking com os intervalos, os fatores do SHAP (azul aumenta, vermelho reduz), os comparáveis e a inspeção dos atributos; o modo "respostas salvas" abre a demonstração sem rede. É uma vitrine sobre a mesma função Python, não um produto (o consumo previsto é pela tool).
 
 **Testado com o [MCP Inspector](https://github.com/modelcontextprotocol/inspector)** (modo de linha de comando; lista as tools, lê o `modelo://card` e chama `prever_criativo`, devolvendo os mesmos números da função Python). O teste `tests/test_mcp.py` faz o mesmo com o cliente do SDK oficial.
 
@@ -136,27 +156,29 @@ npx @modelcontextprotocol/inspector@0.17.2 --cli uv run --directory "$PWD" pytho
 
 | Componente | Escolha | Por quê |
 |---|---|---|
-| Modelo preditivo | Média de LightGBM 4.7 e CatBoost 1.2 (`L1`) + quantis 10% e 90% do LightGBM | Bons em dados tabulares heterogêneos e com ausentes; a média ganhou na ordenação na validação (IC acima de zero) e empatou com o LightGBM sozinho no teste |
+| Modelo preditivo (servido: **v2**) | Média de LightGBM 4.7 e CatBoost 1.2 (`L1`) + quantis 10% e 90% do LightGBM, com as features de comparáveis (RAG) | Bons em dados tabulares heterogêneos e com ausentes; a média ganhou na ordenação na validação. A v2 (PCA 32 + comparáveis) foi escolhida na validação depois do teste e confirmada no teste prospectivo pela regra pré-registrada; a v1 (`lgbm_final`, PCA 16, sem comparáveis) é a avaliada no teste temporal |
 | Hiperparâmetros | Optuna 5.0 (TPE, 40 tentativas) na validação, early stopping temporal | Em [`configs/lgbm.yaml`](configs/lgbm.yaml) |
 | Intervalo | Quantis + conformal sobre quantis (CQR) calibrado na validação | Cobertura de 80% medida, não declarada |
 | Treino final | Reajuste em treino + validação com a calibração medida fora da amostra | Não perde os meses mais recentes |
-| Embedding de texto | `paraphrase-multilingual-mpnet-base-v2` (sentence-transformers 6.1) + PCA 16 | Funciona bem em português |
-| Embedding visual | `google/siglip2-base-patch16-224` (transformers 5.19): thumbnail (PCA 16) e gancho (PCA 8) | Encoder aberto, recomendado no TAPI |
+| Embedding de texto | `paraphrase-multilingual-mpnet-base-v2` (sentence-transformers 6.1) + PCA 32 (v1: 16) | Funciona bem em português |
+| Embedding visual | `google/siglip2-base-patch16-224` (transformers 5.19): thumbnail (PCA 32; v1: 16) e gancho (PCA 8) | Encoder aberto, recomendado no TAPI |
+| Comparáveis (RAG) | Busca exata por cosseno (numpy) na média dos embeddings de texto e thumbnail, só entre Shorts com 30 dias antes | 40 mil vetores dispensam índice aproximado (FAISS) |
 | Transcrição | faster-whisper 1.2 (`small`, int8, VAD) | Gratuito e local |
 | Detectores | MediaPipe 1.1 (rosto), EasyOCR 1.7 (texto), PySceneDetect 0.7 (cortes), OpenCV (cor e movimento) | Gratuitos, locais |
 | VLM | `gemini-3.1-flash-lite` (google-genai 2.30), temperatura 0, saída estruturada | Aceita a URL do YouTube; o 3.5 vivia sobrecarregado |
 | Explicabilidade | TreeSHAP exato dos dois modelos (média) + subagente explicador (`gemini-3.5-flash`, reserva `gemini-3.1-flash-lite`) com validador | Atribuição exata e explicação conferível |
 | Agente | LangGraph 1.2 (grafo fixo) | Extração, contexto e previsão sempre na mesma ordem |
 | Integração | Função Python + servidor MCP (SDK oficial `mcp` 2.3) | Consumo como tool pela Galaxies |
+| Treino dinâmico | pandera (esquema mínimo) + o mesmo pipeline de features, artefato e métricas | Um modelo especialista por cliente, sem código novo |
 | Experimentos | MLflow 3.17 (versão e hash da base, cortes, parâmetros, métricas, SHAP) + pytest | Registro reprodutível |
 
-Detalhes: [docs/MODEL_CARD.md](docs/MODEL_CARD.md) · [docs/FEATURES.md](docs/FEATURES.md)
+Detalhes: [docs/MODEL_CARD.md](docs/MODEL_CARD.md) · [docs/FEATURES.md](docs/FEATURES.md) · [docs/TAPI_CONFORMIDADE.md](docs/TAPI_CONFORMIDADE.md) (cada exigência do TAPI e onde ela está)
 
 ## 6. Metodologia
 
 - **Alvo:** `log1p(curtidas) − log1p(mediana dos últimos (até) 20 Shorts do canal publicados ≥ 30 dias antes)`; o baseline (mediana do canal) equivale a prever zero.
-- **Features em 4 blocos**, medidos por ablação: A (canal, tempo, metadados), B (texto), C (thumbnail na base inteira; vídeo e gancho numa amostra), D (rubrica do VLM, na amostra).
-- **Validação:** split temporal treino/validação/teste (~70/15/15, cortes em 23/04/2026 e 02/07/2026) como principal, mais um teste em 51 canais nunca vistos (20% dos canais). Sem validação cruzada aleatória. Hiperparâmetros, escolha de blocos e calibração usam só a validação; o teste é avaliado uma única vez (`avaliacao_final.py` se recusa a rodar duas vezes).
+- **Features em 4 blocos**, medidos por ablação: A (canal, tempo, metadados), B (texto), C (thumbnail na base inteira; vídeo e gancho numa amostra), D (rubrica do VLM, na amostra); a v2 acrescenta o bloco R (desempenho de Shorts parecidos publicados pelo menos 30 dias antes).
+- **Validação:** split temporal treino/validação/teste (~70/15/15, cortes em 23/04/2026 e 02/07/2026) como principal, mais um teste em 51 canais nunca vistos (20% dos canais). Sem validação cruzada aleatória. Hiperparâmetros, escolha de blocos e calibração usam só a validação; o teste é avaliado uma única vez (`avaliacao_final.py` se recusa a rodar duas vezes). Depois do teste: um **backtest com origem móvel** (4 origens, lacuna de 30 dias) e um **teste prospectivo** com Shorts publicados depois de toda a base, pré-registrado e avaliado uma vez, onde a v2 foi julgada.
 - **Métricas:** MAE-log, MAPE, Spearman global e intra-canal, acurácia par-a-par intra-canal (com todos os pares e só com pares publicados a até 7 dias, que é a decisão real entre criativos), cobertura do intervalo de 80% e F1 das faixas, também por setor, tipo de canal e porte.
 - **Ganho de cada bloco:** escada cumulativa A → A+B → A+B+C → A+B+C+D, ablação "todos menos um" e um controle negativo (colunas de ruído no lugar do VLM), todos com os mesmos hiperparâmetros e IC 95% por bootstrap pareado que reamostra canais. Os blocos que só existem na amostra são comparados nos vídeos da amostra.
 - **Incerteza:** quantis do LightGBM calibrados por CQR; `confidence_flag` com sete regras codificadas (histórico curto, canal instável, intervalo largo, criativo fora da distribuição, setor fora do treino, extração incompleta, data fora do período), avaliado no teste pelo erro dos casos sinalizados.
@@ -166,7 +188,7 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
 
 ## 7. Resultados
 
-**Teste temporal** (4.861 vídeos de 02/07 a 12/09/2026, avaliado uma única vez; `resultados/teste_*`):
+**Teste temporal** (4.861 vídeos de 02/07 a 12/09/2026, avaliado uma única vez com a v1; `resultados/teste_*`):
 
 | Modelo | MAE-log | Spearman (curtidas absolutas) | Spearman intra-canal | Par-a-par | Par-a-par mesma época | Cobertura 80% |
 |---|---|---|---|---|---|---|
@@ -190,7 +212,21 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
 - **LLM zero-shot × modelo:** a nota de "potencial viral" do VLM acerta 52,4% dos pares da mesma época, contra 60,2% do modelo nos mesmos vídeos.
 - **Hipóteses:** H1, H2 e H3 confirmadas; H4 confirmada para canais novos e parcial para marcas; H5 (binárias do VLM > notas) não confirmada. Detalhes, recortes e análise de erros em [docs/EXPERIMENTO.md](docs/EXPERIMENTO.md).
 
-**Demonstração** (`python -m galaxies_tool.demo`; 12 Shorts de 4 canais fora do treino, escolhidos por regra fixa): o valor real caiu dentro do intervalo de 80% em 12 de 12, e a ordem prevista dentro de cada canal teve Spearman de +0,5 a +1,0. É uma demonstração, não uma avaliação; as respostas completas ficam em `resultados/demo/`.
+**Backtest com origem móvel** (4 origens de 11/2025 a 05/2026, cada uma avaliada nos 2 meses seguintes, com lacuna de 30 dias; `resultados/backtest*.csv`): o modelo bate a mediana do canal em todas, com IC acima de zero, e com ganhos parecidos (MAE-log −0,036 a −0,042; par-a-par na mesma época +7,4 a +8,4 p.p.). O resultado não depende de um período favorável.
+
+**Teste prospectivo** (Shorts publicados de 12/09 a 21/09/2026, depois de toda a base, curtidas coletadas em 21/10; protocolo pré-registrado; avaliado uma vez; `resultados/prospectivo_*`). Parte principal, sem vídeo nem VLM, 852 vídeos de canais vistos:
+
+| Modelo | MAE-log | Par-a-par mesma época | Cobertura 80% |
+|---|---|---|---|
+| Mediana do canal | 0,786 | 50,0% | — |
+| v1 (a do teste temporal) | 0,772 | 59,9% | 80,2% |
+| **v2 (servida)** | **0,745** | **61,7%** | 81,9% |
+
+- A v1 repete a ordenação do teste (59,9% × 59,1%), mas o ganho no erro sobre a mediana fica dentro do ruído (−0,014 [−0,041; +0,012]), em parte por um viés previsto: essas curtidas têm só 30 a 39 dias.
+- A v2 erra menos que a v1 (−0,027 [−0,046; −0,008]) e ordena um pouco melhor (+1,8 p.p. [−0,4; +4,0]); pela regra registrada antes de abrir os dados, passou a ser o modelo servido. Nos 262 vídeos de canais novos, também erra menos (0,845 × 0,899).
+- Parte complementar, com vídeo e VLM (586 vídeos extraídos até 09h00 de 21/10): as duas versões ordenam melhor que a mediana (v1 57,4%, v2 58,1% na mesma época, IC acima de zero), e a v2 segue errando menos (−0,019 [−0,041; +0,003]). Nos 132 vídeos de canais novos dessa amostra, a v2 ordenou pior que a v1 (IC largo): ponto a acompanhar.
+
+**Demonstração** (`python -m galaxies_tool.demo`; 12 Shorts de 4 canais fora do treino, escolhidos por regra fixa): com a v2, o valor real caiu dentro do intervalo de 80% em 12 de 12, e a ordem prevista dentro de cada canal teve Spearman de +1,0, +0,5, +0,5 e −1,0 (este na Eudora, cujos 3 vídeos têm de 20 a 64 curtidas). Com a v1, também 12 de 12, e Spearman de +0,5 a +1,0. É uma demonstração, não uma avaliação; as respostas completas ficam em `resultados/demo/`.
 
 ## 8. Limitações
 
@@ -201,15 +237,18 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
 - **Fatores não observados:** mídia paga, distribuição do algoritmo, trends e collabs.
 - **Recorte:** só YouTube Shorts, moda e beleza, Brasil. Outras plataformas, setores (inclusive automotivo, que a tool aceita, mas sinaliza) ou países exigem retreino.
 - **Previsão absoluta é imprecisa por natureza:** o modelo é para comparar criativos, não para prometer números. A chance de um criativo superar outro (`ordenar_criativos`) supõe erros independentes, o que a torna conservadora.
-- **Validação com um único corte e sem lacuna:** hiperparâmetros e blocos foram escolhidos num só período de validação (abr–jul/2026), e não há lacuna de 30 dias entre o fim do treino e o início da validação, nem entre o fim do treino final (01/07) e o teste (02/07): o modelo usou curtidas de vídeos de junho que, em 02/07, ainda não estariam maduras. Uma análise de sensibilidade mostra que isso não inflou o teste: nos vídeos publicados a partir de 01/08 (lacuna de 30 dias ou mais), o erro e a ordenação são iguais ou melhores (par-a-par na mesma época 60,2%, contra 59,1% no teste inteiro).
+- **Validação com um único corte e sem lacuna:** hiperparâmetros e blocos foram escolhidos num só período de validação (abr–jul/2026), sem lacuna de 30 dias entre treino, validação e teste. Três análises posteriores mostram que isso não inflou os resultados: nos vídeos do teste publicados a partir de 01/08 (lacuna de 30 dias ou mais), o desempenho é igual ou melhor; o backtest com origem móvel, com lacuna, dá o mesmo ganho em 4 períodos; e o teste prospectivo repete a ordenação.
+- **A v2 foi escolhida depois do teste temporal**, na validação, entre 13 variantes, e só foi julgada no teste prospectivo (852 vídeos em 9 dias). O ganho sobre a v1 no erro tem IC abaixo de zero; na ordenação, o IC ainda cruza zero. Para voltar à v1: `GALAXIES_MODELO=models/lgbm_final.joblib`.
+- **As features de comparáveis da v2 dependem da base:** a busca usa os embeddings dos 40 mil Shorts da base (não versionados; sem eles, a tool usa a v1). Para um canal de fora informado só por `channel_stats` (datas e curtidas), os comparáveis do próprio canal não existem e só os do setor entram.
+- **Viés de maturidade:** as curtidas do treino foram medidas com idades de 30 dias a 18 meses. Em vídeos recém-maduros (30 a 39 dias, teste prospectivo), o modelo superestima o nível em ~15% (mediana); a ordenação não é afetada.
 - **Confidencialidade dos criativos:** no free tier, o Gemini pode usar o conteúdo enviado para treino. Para vídeos já publicados isso é aceitável; um criativo **ainda não publicado** de um cliente não deve ir para o free tier: use `analisar_video=False` (só texto e imagem, com a confiança reduzida), a camada paga do Gemini ou um VLM aberto local.
 - **Criativo só em texto ou só imagem:** as colunas de vídeo e do VLM ficam ausentes, e o modelo, que viu a maioria dos vídeos de treino sem elas, ainda assim reage à ausência (por exemplo, "duração ausente" pesa na previsão). A resposta vem com `confidence_flag` ligado (`extracao_incompleta`) e deve ser lida como ordem de grandeza.
 - **O explicador usa um LLM próprio** (Gemini), além do LLM da persona que chama a tool. A explicação é validada e tem um texto padrão de reserva, mas o número nunca passa pelo LLM. No free tier, o `gemini-3.5-flash` permite só 20 pedidos por dia e os modelos ficam sobrecarregados com frequência: nesses casos a resposta usa o texto padrão (`explicacao_fonte = padrao`), que é sempre fiel. Em produção, use a camada paga ou deixe a narração para o LLM da persona.
 
 ## 9. Evolução
 
-- **Retreino com a base de um cliente:** o pipeline segue o esquema mínimo do TAPI (`post_id`, `channel_id`, `published_at`, `caption`, `media_ref`, `metric_target`, `channel_stats_at_collection`, `sector`), o que permite treinar um modelo especialista quando um cliente liberar sua base de ads (hoje por scripts, ainda não como tool).
-- **Coletas periódicas** para medir curtidas num horizonte fixo (ex.: 30 dias após a publicação), recalibrar o intervalo e acompanhar a deriva da plataforma.
+- **Treino dinâmico com a base pública como ponto de partida:** a tool `treinar_modelo_cliente` já treina um especialista com a base de um cliente. No exemplo com os canais de marca, o especialista ordena (+6,3 p.p. na mesma época), mas sofre com a deriva no nível; o próximo passo é treinar com a base pública + a do cliente (com uma coluna de origem), em vez de só a do cliente.
 - **Cobrir a base inteira com vídeo e VLM** (camada paga do Gemini ou um VLM aberto), para medir esses blocos com mais precisão e em canais novos.
 - **Mais marcas e o setor automotivo**, para chegar mais perto do perfil de cliente da Galaxies.
-- **Extensões do TAPI ainda não feitas:** treino dinâmico como tool, RAG sobre comparáveis de alto desempenho, what-if de legenda e gancho (hoje só de horário), embeddings de vídeo completo (X-CLIP/VideoMAE) e de áudio (CLAP), clusterização de descritores do VLM.
+- **Extensões do TAPI ainda não feitas:** what-if de gancho (exigiria gerar variações do vídeo), embeddings de vídeo completo (X-CLIP/VideoMAE) e de áudio (CLAP), clusterização de descritores do VLM (a rubrica não coleta descritores livres) e um VLM local de reserva (Qwen2.5-VL). Mapa completo do que o TAPI pede e onde está: [docs/TAPI_CONFORMIDADE.md](docs/TAPI_CONFORMIDADE.md).
+- **Coletas periódicas e recalibração do nível:** medir as curtidas num horizonte fixo (ex.: 30 dias após a publicação), acompanhar a deriva da plataforma e recalibrar o centro da previsão com os vídeos mais recentes; o teste prospectivo mostrou um viés de maturidade que isso reduziria sem mexer na ordenação.

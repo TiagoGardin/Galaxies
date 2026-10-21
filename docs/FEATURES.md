@@ -65,7 +65,7 @@ Listas de palavras-chave dos formatos:
 | `fmt_antes_depois` | antes e depois, transformação, resultado |
 | `fmt_trend` | trend, desafio, challenge |
 
-A precisão das flags deve ser validada contra 100 vídeos rotulados à mão (ver "Validação das flags de formato" em EXPERIMENTO.md). A amostra e o script estão prontos (`galaxies_tool/rotulos.py`); a rotulagem manual ainda não foi feita.
+Validação contra 98 vídeos rotulados à mão (EXPERIMENTO.md, "Validação das flags de formato"): precisão de 0,50 a 0,75 em GRWM, haul, provador e trend, mas recall de 0,15 a 0,38 (a maioria dos vídeos não declara o formato no texto); tutorial e antes e depois disparam por palavras genéricas (precisão 0,18 e 0,00).
 
 ## Bloco C — Visual e áudio (camada multimodal mínima, 100% offline)
 
@@ -93,7 +93,7 @@ Vídeos "made for kids" ficam sem esta parte: são públicos, mas sem login o Yo
 
 Pergunta do bloco: **que julgamento de conteúdo um especialista faria?** O Gemini Flash-Lite (`gemini-3.1-flash-lite`, temperatura 0) recebe **só o vídeo** (a URL pública do YouTube; no agente, um vídeo local vai pela Files API do Gemini), sem título, canal ou métricas (regra 6), e responde um JSON fixo validado com Pydantic (`galaxies_tool/vlm.py`). Não há fallback local implementado: se o Gemini falhar, as colunas do bloco D ficam ausentes e o agente sinaliza baixa confiança (`extracao_incompleta`). Um VLM aberto (Qwen2.5-VL) é o caminho para produção e para criativos confidenciais (ver README, Limitações).
 
-Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente sobrecarregado (erro 503, ~30 s por vídeo quando respondia), o que inviabilizaria a amostra; o `gemini-2.5-flash-lite` não está mais disponível para contas novas. O `gemini-3.1-flash-lite` processa o vídeo de verdade (~8,7 mil tokens de entrada para 95 s) em 2–3 s. Toda a amostra usa o mesmo modelo; as 134 rubricas feitas antes com o 3.5 ficam em `data/features/vlm_gemini35/` só para medir a concordância entre os dois modelos. Resultado nesses 134 vídeos: campos sim/não concordam em 87–99% (o mais fraco é `tem_musica_de_fundo`); notas 0–10 têm Spearman 0,66–0,84 (o mais fraco é `forca_hook_0a10`); `audio_original_ou_musica` e `tom_narracao` concordam em 77–80%, e `formato` em 72% (contra 34% de acertar sempre a classe mais comum). A troca de modelo não muda o que a rubrica mede; `forca_hook_0a10` e `formato` são os campos mais subjetivos; a conferência do `formato` contra 100 vídeos rotulados à mão está preparada, mas a rotulagem ainda não foi feita (EXPERIMENTO.md).
+Escolha do modelo (13/10/2026): o `gemini-3.5-flash-lite` estava constantemente sobrecarregado (erro 503, ~30 s por vídeo quando respondia), o que inviabilizaria a amostra; o `gemini-2.5-flash-lite` não está mais disponível para contas novas. O `gemini-3.1-flash-lite` processa o vídeo de verdade (~8,7 mil tokens de entrada para 95 s) em 2–3 s. Toda a amostra usa o mesmo modelo; as 134 rubricas feitas antes com o 3.5 ficam em `data/features/vlm_gemini35/` só para medir a concordância entre os dois modelos. Resultado nesses 134 vídeos: campos sim/não concordam em 87–99% (o mais fraco é `tem_musica_de_fundo`); notas 0–10 têm Spearman 0,66–0,84 (o mais fraco é `forca_hook_0a10`); `audio_original_ou_musica` e `tom_narracao` concordam em 77–80%, e `formato` em 72% (contra 34% de acertar sempre a classe mais comum). A troca de modelo não muda o que a rubrica mede; `forca_hook_0a10` e `formato` são os campos mais subjetivos; contra 98 vídeos rotulados à mão, o `formato` acerta 42,9% (53,8% sem provador e antes e depois, que o esquema não oferece; a classe mais comum sozinha acerta 32,1%), e superusa "tutorial" (EXPERIMENTO.md).
 
 | Feature | Tipo | Por que ajuda |
 |---|---|---|
@@ -122,6 +122,24 @@ No modelo, as colunas ganham o prefixo `vlm_` (para não colidir com as de outro
 Prompt (texto exato em `galaxies_tool/vlm.py`): _"Você é um analista de criativos de moda e beleza. Assista ao vídeo e preencha a rubrica. Avalie apenas o que aparece e se ouve no vídeo. Não use conhecimento sobre quem é o criador, sobre a marca ou sobre a popularidade do vídeo. Notas de 0 a 10: 0 = ausente/péssimo, 10 = excelente."_ O esquema vai como `response_schema` (JSON estruturado), com temperatura 0. A resposta é validada com Pydantic; respostas inválidas são reenviadas uma vez e depois marcadas como ausentes.
 
 Diferenças em relação à rubrica sugerida no TAPI: a rubrica cobre gancho, pessoas e produto, texto e edição, áudio, estética e mensagem, mas não coleta os campos de texto livre (`hook_primeiros_3s`, `elementos_video_top5`, `elementos_audio_top5`) nem `cor_dominante`, `brilho_saturacao_0a10` e `energia_musica_0a10`: brilho, saturação e cor já são medidos na thumbnail (OpenCV) e a energia do áudio no bloco C (RMS). Sem os descritores livres, a clusterização de descritores da "camada 2" do TAPI não foi feita. Limitação conhecida: o prompt ancora só os extremos da escala (0 e 10), não o meio; trocar o prompt agora exigiria refazer toda a amostra (aula 4.7), então fica registrado como limitação.
+
+## Bloco R — Comparáveis (só na v2)
+
+Pergunta do bloco: **como Shorts parecidos se saíram?** É a extensão "RAG sobre criativos comparáveis" do TAPI (`galaxies_tool/rag.py`). Para cada vídeo, busca os Shorts mais parecidos (cosseno na média dos embeddings brutos de texto e de thumbnail, renormalizada) entre os vídeos-alvo da base publicados **pelo menos 30 dias antes** dele (regra 2), e usa o desempenho real deles (o alvo, relativo ao canal de cada um):
+
+| Feature | Cálculo | Por que ajuda |
+|---|---|---|
+| `rag_canal_alvo` | Média do alvo dos 5 Shorts mais parecidos do mesmo canal, ponderada pela similaridade | "Quando este canal fez algo parecido, foi bem?" |
+| `rag_canal_sim` | Similaridade com o Short mais parecido do canal | Criativo repetido × novidade para a audiência |
+| `rag_canal_recente` | Média do alvo dos 10 Shorts maduros mais recentes do canal | Controle sem conteúdo: o canal vem superando a própria mediana? |
+| `rag_setor_alvo` | Média do alvo dos 20 mais parecidos de outros canais do mesmo setor, ponderada pela similaridade | O que esse tipo de conteúdo costuma render em relação ao próprio canal |
+
+O próprio vídeo nunca é vizinho de si mesmo, e a regra dos 30 dias vale no treino e no agente (`canal.features_rag`, mesma função; um teste confere). Sem comparáveis maduros do canal, as três primeiras ficam ausentes. A busca é exata (numpy): com 40 mil vetores, um índice aproximado (FAISS) não é necessário. Na v2, os PCAs de texto e de thumbnail passam de 16 para 32 componentes (o TAPI sugere de 16 a 32); a escolha das duas mudanças está em EXPERIMENTO.md ("Depois do teste").
+
+## Detectores não usados
+
+- **YOLO (produto/pessoa), sugerido no TAPI:** "produto em destaque" e "pessoa" vêm do VLM (`close_up_produto`, `try_on_ou_demonstracao`, `tem_rosto`), que entende o contexto de moda e beleza; as classes genéricas do COCO não distinguem um batom de um frasco qualquer. Rosto e texto na thumbnail vêm do MediaPipe e do EasyOCR.
+- **DINOv2 (opcional no TAPI):** o SigLIP 2 já descreve a imagem, e a estética vem do VLM.
 
 ## Features descartadas
 

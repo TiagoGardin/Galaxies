@@ -1,6 +1,8 @@
 # Model Card
 
-**Versão:** `lgbm_final` (`models/lgbm_final.joblib` e `.json`), treinado em 18/10/2026 sobre a `base_v1` (coleta de 12/10/2026), com 27.204 vídeos de treino + validação (01/04/2025 a 01/07/2026), 106 features. Registrado no MLflow (experimento `galaxies_validacao`, run `artefato_lgbm_final`; avaliação no experimento `galaxies_teste`).
+**Versão servida:** `lgbm_v2` (`models/lgbm_v2.joblib` e `.json`), treinada em 21/10/2026 sobre a `base_v1` (coleta de 12/10/2026), com 27.204 vídeos de treino + validação (01/04/2025 a 01/07/2026), 142 features. Escolhida na validação depois do teste temporal e confirmada no teste prospectivo pela regra pré-registrada (EXPERIMENTO.md, "Depois do teste"). Registrada no MLflow (run `artefato_lgbm_v2` em `galaxies_validacao`; avaliação em `galaxies_prospectivo`).
+
+**Versão anterior:** `lgbm_final` (v1, `models/lgbm_final.joblib`), treinada em 18/10/2026 com os mesmos dados e 106 features: é a avaliada no teste temporal (experimento `galaxies_teste`). A v2 é a v1 com duas mudanças: PCA de 32 componentes (em vez de 16) nos embeddings de texto e de thumbnail, e 4 features de comparáveis (bloco R, abaixo). Hiperparâmetros, protocolo de treino, intervalo e `confidence_flag` são os mesmos. A tool usa a v1 se os embeddings da base não estiverem presentes (as features de comparáveis dependem deles) ou com `GALAXIES_MODELO=models/lgbm_final.joblib`.
 
 ## Tarefa
 
@@ -57,6 +59,7 @@ As faixas são simétricas em escala log (0,67 ≈ 1/1,5) e são avaliadas com F
 | B | Features manuais do título/descrição + embedding de texto (PCA 16) | Texto |
 | C | Thumbnail (base inteira): SigLIP 2 (PCA 16), cor, rosto, OCR. Vídeo (amostra): cortes, movimento, voz, energia de áudio, SigLIP 2 do gancho (PCA 8) | Vídeo e thumbnail (offline) |
 | D | Rubrica JSON respondida pelo VLM (amostra): 8 sim/não, 5 notas 0–10 e 4 categorias | Gemini 3.1 Flash-Lite |
+| R (só v2) | Desempenho real de Shorts parecidos publicados pelo menos 30 dias antes: do próprio canal (média ponderada dos 5 mais parecidos e similaridade do mais parecido), dos 10 mais recentes do canal e de 20 parecidos de outros canais do setor | Base coletada + embeddings de texto e thumbnail |
 
 As partes de vídeo do bloco C e o bloco D existem só numa amostra da base (cota e ritmo de download; ver EXPERIMENTO.md); fora dela, as colunas são ausentes e o LightGBM as trata nativamente. No agente, todo criativo em vídeo passa pelas duas etapas.
 
@@ -66,7 +69,7 @@ Lista completa, regras anti-vazamento e features descartadas: [FEATURES.md](FEAT
 
 Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log, MAPE em curtidas, Spearman global e intra-canal, acurácia par-a-par intra-canal (todos os pares e pares da mesma época, a até 7 dias), cobertura do intervalo de 80% e F1 macro das faixas.
 
-**Teste temporal** (4.861 vídeos, 02/07 a 12/09/2026, avaliado uma única vez):
+**Teste temporal** (4.861 vídeos, 02/07 a 12/09/2026, avaliado uma única vez, com a v1):
 
 | | MAE-log | Spearman intra-canal | Par-a-par | Par-a-par mesma época | Cobertura 80% | F1 faixas |
 |---|---|---|---|---|---|---|
@@ -83,6 +86,16 @@ Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log,
 | Vídeos virais (≥ 3× a mediana) | 1,79 × 2,01 | — | 42,6% |
 
 `confidence_flag`: ligou em 16% do teste; MAE-log 1,10 nos sinalizados contra 0,70 nos demais. Detalhes e IC em [EXPERIMENTO.md](EXPERIMENTO.md).
+
+**Teste prospectivo** (Shorts publicados de 12/09 a 21/09/2026, depois de toda a base; curtidas de 21/10; extração sem vídeo nem VLM; avaliado uma única vez, com v1 e v2):
+
+| Canais vistos (852 vídeos) | MAE-log | Spearman intra-canal | Par-a-par mesma época | Cobertura 80% | Interval score | Viés mediano |
+|---|---|---|---|---|---|---|
+| Mediana do canal (baseline) | 0,786 | indefinido | 50,0% | — | — | — |
+| v1 | 0,772 | 0,232 | 59,9% | 80,2% | 3,76 | +0,16 |
+| **v2 (servida)** | **0,745** | 0,250 | **61,7%** | 81,9% | 3,67 | +0,13 |
+
+v2 − v1: MAE-log −0,027 [−0,046; −0,008]; par-a-par na mesma época +1,8 p.p. [−0,4; +4,0]. Canais novos (262 vídeos): MAE-log 0,845 (v2) × 0,899 (v1) × 0,913 (mediana). Na parte com vídeo e VLM (454 vídeos de canais vistos), v2 − v1 no MAE-log −0,019 [−0,041; +0,003] e no par-a-par +0,7 p.p.; nos 132 de canais novos, a v2 ordenou pior (54,1% × 63,1%, IC largo). Na validação, o modelo de desenvolvimento da v2 tem MAE-log 0,811 (v1: 0,817) e par-a-par na mesma época de 58,9% (v1: 57,7%). O viés positivo vem da idade das curtidas (30 a 39 dias, contra 30 dias a 18 meses no treino): em vídeos recém-maduros, o modelo superestima o nível em ~15%.
 
 ## Usos pretendidos
 
@@ -109,4 +122,5 @@ Métricas usadas (definições em [EXPERIMENTO.md](EXPERIMENTO.md)): MAE em log,
 - **Deriva:** a plataforma muda a distribuição dos Shorts; o modelo precisa de retreino periódico com coletas novas.
 - Condições do `confidence_flag`: ver "Algoritmo e configuração".
 - **Onde mais erra** (teste): vídeos que viralizam muito acima do canal (não os antecipa; o intervalo cobre só 43% deles), anúncios com mídia paga e publis de cupom com engajamento quase nulo, canais pequenos (< 20 mil inscritos) e canais instáveis.
-- **Canais que o modelo nunca viu no treino:** o erro empata com a mediana do canal e a ordenação fica pouco acima do acaso (52,3% na mesma época); use a previsão como ordem de grandeza.
+- **Canais que o modelo nunca viu no treino:** no teste temporal (v1), o erro empata com a mediana do canal e a ordenação fica pouco acima do acaso (52,3% na mesma época); use a previsão como ordem de grandeza. No teste prospectivo, os canais novos da base ficaram melhores (v2: 58,0% na mesma época), mas eles têm os vídeos antigos na base; um canal de fora, informado só por `channel_stats`, não tem os comparáveis do próprio canal.
+- **A v2 foi escolhida depois do teste temporal** (validação, 13 variantes) e julgada num único período prospectivo de 9 dias; o ganho de ordenação sobre a v1 ainda tem IC cruzando zero.

@@ -83,7 +83,10 @@ Por isso foi acrescentada a **acurácia par-a-par na mesma época (7 dias)**, qu
 ### Validação das flags de formato
 100 vídeos sorteados do treino (semente 42), entre os que têm rubrica do VLM, para comparar as duas fontes nos mesmos vídeos, são rotulados à mão (assistindo, sem olhar as flags nem a rubrica) com o formato principal. Mede-se a precisão e o recall das flags de texto (bloco B) e do campo `formato` do VLM (bloco D) contra esses rótulos (`python -m galaxies_tool.rotulos sortear` / `avaliar`).
 
-**Situação (18/10/2026):** a amostra foi sorteada (`data/rotulos_formato.csv`), mas a rotulagem manual ainda não foi feita. As flags e a rubrica entram no modelo sem essa validação; o efeito delas é medido pela ablação.
+**Resultado (21/10/2026; 98 vídeos rotulados, 2 indisponíveis; `resultados/rotulos_formato.csv`):**
+- **Flags de texto (bloco B):** precisão média e recall baixo. Quando o texto declara o formato, ele costuma estar certo em GRWM e provador (precisão 0,75), trend (0,67) e haul (0,50), mas a maioria dos vídeos não declara: o recall fica entre 0,15 (review) e 0,38 (GRWM), e só 30 dos 98 vídeos têm alguma flag. Tutorial (precisão 0,18) e antes e depois (0,00) disparam por palavras genéricas ("dica", "resultado"). As flags medem o formato **declarado**, não o real, como FEATURES.md já dizia.
+- **`formato` do VLM (bloco D):** acerta 42,9% do formato principal (a classe mais comum sozinha: 25,5%). Excluindo provador e antes e depois, que o esquema da rubrica não tem como opção (20 vídeos; o VLM os espalhou entre tutorial, outro, trend, review e haul), acerta 53,8% (classe mais comum: 32,1%). O VLM superusa "tutorial" (32 previstos, 9 reais; precisão 0,25) e "review" (precisão 0,41).
+- **Consequência:** as duas fontes são ruidosas, o que é coerente com o ganho pequeno do texto manual e do VLM na ablação. A falta de "provador" no esquema do VLM é a correção mais barata para uma próxima rubrica (17% da amostra), junto com uma definição mais estrita de tutorial. Como trocar a rubrica exigiria refazer toda a amostra do VLM, fica como evolução; nada no modelo foi alterado por causa deste resultado.
 
 ### Registro
 Cada execução é registrada no MLflow (`mlflow.db` + `mlruns/`, locais e fora do git): hiperparâmetros, lista de features, versão e hash da base e das features, datas de corte, métricas e a média do |SHAP| por feature do modelo completo. Experimentos `galaxies_validacao` (desenvolvimento, ajuste e artefato) e `galaxies_teste` (avaliação final, única). As tabelas também ficam em `resultados/` (CSV versionado no git), para quem não tem o MLflow local.
@@ -288,4 +291,114 @@ Roteiro definido antes dos resultados:
 
 **Pergunta norteadora.** Sim, em parte: antes da publicação, a partir do criativo e do histórico do canal, o modelo ordena dois criativos do mesmo canal publicados na mesma semana corretamente em cerca de 59% dos casos (a mediana do canal acerta 50%) e erra o número de curtidas por um fator típico de e^0,76 ≈ 2,1×, com um intervalo de 80% que cobriu 83% dos casos. O valor vem principalmente do histórico do canal, do texto e da imagem de capa; a rubrica do VLM soma um pouco. O modelo não antecipa virais (o maior erro) e não serve para canais sem histórico na base: nesses casos, o `confidence_flag` e a mediana do canal são a resposta honesta.
 
-**Recomendação para produção** (o "Protocolo congelado" deixou a escolha para depois do teste): manter o VLM, que somou ordenação no teste, e tornar opcional a parte de vídeo (download, Whisper, cortes, movimento, gancho), que não somou em nenhuma métrica principal e é a etapa mais cara e frágil do agente (download bloqueável, vídeos "made for kids"). Retreinar sem ela é uma decisão para a próxima versão, com nova validação; o artefato avaliado aqui continua sendo o servido.
+**Recomendação para produção** (o "Protocolo congelado" deixou a escolha para depois do teste): manter o VLM, que somou ordenação no teste, e tornar opcional a parte de vídeo (download, Whisper, cortes, movimento, gancho), que não somou em nenhuma métrica principal e é a etapa mais cara e frágil do agente (download bloqueável, vídeos "made for kids"). Retreinar sem ela é uma decisão para a próxima versão, com nova validação. **Atualização (21/10/2026):** o modelo servido passou a ser a v2, escolhida na validação e confirmada no teste prospectivo pela regra pré-registrada (seção seguinte); a v1, avaliada aqui, continua disponível (`GALAXIES_MODELO=models/lgbm_final.joblib`).
+
+## Depois do teste: melhorias candidatas e teste prospectivo (21/10/2026)
+
+O teste temporal foi avaliado uma única vez (19/10) e não pode ser usado de novo para escolher nada. Esta seção registra o que foi feito depois dele, na ordem em que foi feito, com o mesmo cuidado: escolhas só na validação, pré-registro antes de abrir dados novos e avaliação única.
+
+### Melhorias candidatas (só validação)
+
+Todas com os mesmos hiperparâmetros (`configs/lgbm.yaml`), o mesmo early stopping e o mesmo bootstrap de canais, comparadas ao modelo atual na validação (4.774 vídeos). Diferenças com IC 95%:
+
+| Candidata | Δ MAE-log | Δ par-a-par mesma época | Δ Spearman intra-canal |
+|---|---|---|---|
+| Ponderação por recência (meia-vida de 180 dias), só LightGBM | −0,002 [−0,007; +0,003] | +0,3 p.p. [−0,6; +1,2] | +0,004 [−0,016; +0,025] |
+| Ponderação por recência (365 dias) | −0,000 [−0,004; +0,003] | +0,1 p.p. [−0,7; +1,1] | +0,010 [−0,007; +0,031] |
+| PCA de 32 componentes no texto e na thumbnail (o TAPI sugere 16 a 32), só LightGBM | −0,005 [−0,012; +0,002] | +0,5 p.p. [−0,5; +1,6] | +0,024 [−0,002; +0,051] |
+| Features de comparáveis (RAG, abaixo), só LightGBM | −0,004 [−0,015; +0,005] | +1,0 p.p. [−0,2; +2,3] | +0,009 [−0,023; +0,042] |
+| LambdaRank por canal × semana (objetivo de ordenação), só LightGBM | +0,048 [+0,023; +0,081] | −0,0 p.p. [−1,8; +1,8] | −0,051 [−0,092; −0,012] |
+| **PCA 32 + RAG, média LightGBM + CatBoost (v2)** | **−0,009 [−0,019; −0,000]** | **+1,3 p.p. [+0,3; +2,5]** | +0,007 [−0,028; +0,041] |
+| PCA 32, média LightGBM + CatBoost | −0,003 [−0,009; +0,003] | +0,2 p.p. [−0,7; +1,1] | +0,015 [−0,009; +0,039] |
+
+**Features de comparáveis (extensão "RAG" do TAPI, `galaxies_tool/rag.py`).** Para cada vídeo, busca os Shorts mais parecidos (cosseno na média dos embeddings de texto e de thumbnail) entre os publicados pelo menos 30 dias antes dele, e transforma o desempenho real deles em features: média ponderada do alvo dos 5 mais parecidos do mesmo canal, similaridade do mais parecido, média do alvo dos 10 Shorts maduros mais recentes do canal (controle sem conteúdo) e média ponderada do alvo dos 20 mais parecidos de outros canais do mesmo setor. A regra de maturidade é a mesma do histórico (regra 2 de FEATURES.md), então nenhuma curtida do futuro entra.
+
+**Leitura.** Nenhuma candidata isolada tem ganho com IC inteiramente acima de zero; a combinação PCA 32 + RAG no ensemble tem, no par-a-par da mesma época (+1,3 p.p.) e no limite no MAE. Mas ela foi a melhor de 13 variantes testadas na mesma validação (as da tabela, mais as meias-vidas de 730 dias, cada parte do RAG em separado e o LambdaRank com mais árvores), que já tinha servido para escolher hiperparâmetros e blocos: parte do ganho pode ser sorte (maldição do vencedor). Por isso ela vira a candidata **v2** (`modelo.VARIANTES["v2"]`, artefato `models/lgbm_v2.joblib`, mesmo protocolo de `artefato.py`) e só é julgada em dados novos, abaixo. A v1 continua sendo o modelo servido até lá.
+
+### Teste prospectivo: pré-registro (21/10/2026, 01h30, antes de qualquer previsão nesses vídeos)
+
+**Dados.** A coleta de 12/10 já listava os Shorts publicados até 12/10, mas os publicados depois de 12/09 ainda não tinham 30 dias e ficaram fora da base. Em 21/10 (00h28), os publicados até 21/09 completaram 30 dias: 1.170 Shorts publicados entre 12/09 18h57 e 21/09 03h12 (UTC), dos quais 1.114 passam pelas regras da base (curtidas visíveis, fora dos canais de demonstração, sem texto pós-publicação e com 5 Shorts de histórico): **852 em 143 canais vistos no treino** e **262 em 41 canais novos**. As curtidas são as de 21/10 (`videos.list`, 24 unidades de cota); título, descrição e tags são os da coleta de 12/10, mais perto da publicação. Nenhum modelo, hiperparâmetro ou análise viu esses vídeos. `python -m galaxies_tool.prospectivo coletar`.
+
+**Como cada vídeo é montado:** o mesmo caminho de uma chamada real da tool. Bloco A com `canal.features_do_canal` (histórico da base_v1, só Shorts com 30 dias antes do vídeo); blocos B, C e D com a Tool 1 do agente (`extracao.extrair_isolado`). Duas extrações, ambas em ordem aleatória (semente 42):
+- **principal:** sem vídeo (texto e thumbnail), para todos os 1.114 vídeos (já concluída, sem olhar curtidas);
+- **complementar:** com o vídeo em 360p e a rubrica do VLM, até 21/10 às 09h00 (limitada pelo ritmo de download e pela cota diária do Gemini); avaliada no subconjunto que ela cobrir, que é uma amostra aleatória.
+
+**Modelos comparados nos mesmos vídeos:** mediana do canal, regressão linear (as duas ajustadas em treino + validação), **v1** (`lgbm_final`, congelado, o avaliado no teste temporal) e **v2** (`lgbm_v2`). Canais vistos e canais novos à parte.
+
+**Perguntas e critérios:**
+1. **A v1 se sustenta em vídeos novos?** MAE-log e par-a-par na mesma época contra a mediana do canal, com IC 95% por bootstrap de canais, nos canais vistos. É uma replicação de H1 e H2 num período posterior.
+2. **A v2 é melhor que a v1?** Diferença v2 − v1 em MAE-log e par-a-par na mesma época, com IC. **Regra de decisão:** a v2 passa a ser o modelo servido só se, nos canais vistos e na parte principal, tiver MAE-log menor ou igual e par-a-par na mesma época maior ou igual ao da v1 (estimativas pontuais) **e** nenhuma das duas diferenças tiver IC inteiramente contra a v2. Caso contrário, a v1 continua servida e a v2 fica registrada como tentativa.
+3. **Calibração e viés:** cobertura do intervalo de 80% e viés mediano (previsto − real). As curtidas desses vídeos têm 30 a 39 dias, contra 30 dias a 18 meses no treino: espera-se um viés positivo pequeno (o modelo prevê para vídeos "mais maduros").
+4. **`confidence_flag`:** erro dos sinalizados contra os não sinalizados. Na parte principal, a falta de vídeo e VLM é esperada (não liga `extracao_incompleta`).
+
+Cada parte é avaliada uma vez (`python -m galaxies_tool.prospectivo avaliar --parte principal|video`, com trava em `resultados/.prospectivo_<parte>`). Resultados em `resultados/prospectivo_*`, sem reprocessar nada depois de ver os números.
+
+### Teste prospectivo: resultados da parte principal (avaliada uma vez, 21/10/2026, 01h17)
+
+852 vídeos de 143 canais vistos e 262 de 41 canais novos, publicados entre 12/09 e 21/09/2026, com a extração sem vídeo (texto e thumbnail; vídeo e VLM ausentes, como num criativo enviado com `analisar_video=False`). Tabelas em `resultados/prospectivo_principal*.csv` e `resultados/prospectivo_principal_resumo.json`.
+
+| Canais vistos (852 vídeos) | MAE-log | MAPE | Spearman intra-canal | Par-a-par | Par-a-par mesma época | Cobertura 80% | Interval score | Viés mediano |
+|---|---|---|---|---|---|---|---|---|
+| Mediana do canal | 0,786 | 1,30 | indefinido | 50,0% | 50,0% | — | — | — |
+| Regressão linear | 0,814 | 1,42 | 0,278 | 56,8% | 56,6% | — | — | — |
+| v1 (avaliada no teste temporal) | 0,772 | 1,17 | 0,232 | 59,8% | 59,9% | 80,2% | 3,76 | +0,16 |
+| **v2 (PCA 32 + comparáveis)** | **0,745** | **1,13** | 0,250 | **61,6%** | **61,7%** | 81,9% | **3,67** | +0,13 |
+
+| Diferença (IC 95%, bootstrap de canais) | Δ MAE-log | Δ par-a-par mesma época |
+|---|---|---|
+| v1 − mediana do canal | −0,014 [−0,041; +0,012] | +9,9 p.p. [+5,7; +13,9] |
+| v2 − mediana do canal | −0,041 [−0,070; −0,014] | +11,7 p.p. [+6,6; +16,6] |
+| v1 − regressão linear | −0,042 [−0,073; −0,015] | +3,3 p.p. [+0,3; +6,8] |
+| **v2 − v1** | **−0,027 [−0,046; −0,008]** | +1,8 p.p. [−0,4; +4,0] |
+
+Canais novos (262 vídeos): MAE-log 0,913 (mediana), 0,899 (v1) e 0,845 (v2); par-a-par na mesma época 50,0%, 56,9% e 58,0%; v2 − v1 no MAE −0,053 [−0,102; −0,010]. Ressalva: nesses canais, as features de comparáveis do próprio canal da v2 usam os vídeos antigos deles, que estão na base com embeddings (como o histórico de curtidas, que a v1 também usa). Um canal de fora informado só por `channel_stats` (datas e curtidas) não tem esses vídeos: nele, só a feature de comparáveis do setor existe.
+
+**Leitura:**
+1. **A v1 se sustenta na ordenação, não no erro.** Em vídeos posteriores a todo o treino, ela acerta 59,9% dos pares da mesma época (+9,9 p.p. sobre a mediana do canal, IC acima de zero), o mesmo patamar do teste temporal (59,1%). Mas o ganho de MAE sobre a mediana encolheu de −0,076 (teste) para −0,014, dentro do ruído. Duas causas prováveis, as duas previstas no pré-registro: o viés positivo (+0,16: as curtidas desses vídeos têm só 30 a 39 dias, e o modelo prevê para vídeos mais maduros; o viés se concentra nos vídeos "abaixo da média") e a ausência de vídeo e VLM nesta parte. O intervalo continua calibrado (80,2%).
+2. **A v2 é melhor que a v1 em vídeos novos.** Erra menos (−0,027, IC abaixo de zero), ordena um pouco melhor (+1,8 p.p., IC cruzando zero), tem intervalo mais informativo (interval score 3,67 × 3,76) e cobertura de 81,9%. Pela **regra pré-registrada** (MAE menor ou igual, par-a-par maior ou igual e nenhum IC inteiramente contra a v2), **a v2 passa a ser o modelo servido**. O ganho da validação (+1,3 p.p. no par-a-par, −0,009 no MAE) se repetiu em dados novos, o que reduz o receio de maldição do vencedor.
+3. **O `confidence_flag` continua separando o erro:** os 75 vídeos sinalizados (8,8%) tiveram MAE-log 1,38, contra 0,71 dos demais.
+4. **Onde erra:** os mesmos padrões do teste. Virais (cobertura de 41%), vídeos "abaixo da média" (MAE 1,01, viés +0,84) e beleza mais que moda (0,88 × 0,58).
+
+A parte complementar (com vídeo e VLM) é avaliada à parte, às 09h00, com o que a extração tiver coberto.
+
+### Backtest com origem móvel (21/10/2026)
+
+Responde à limitação "hiperparâmetros e blocos escolhidos num único corte de validação". A mesma receita (LightGBM v1, todos os blocos, `configs/lgbm.yaml`, PCAs reajustados em cada treino) treinada até 30 dias antes de quatro origens e avaliada nos 2 meses seguintes, só com vídeos de treino + validação (o teste fica intocado). `python -m galaxies_tool.backtest` → `resultados/backtest*.csv`.
+
+| Origem (treino) | Vídeos avaliados | MAE-log modelo × mediana | Δ MAE-log (IC 95%) | Par-a-par mesma época | Δ par-a-par mesma época (IC 95%) |
+|---|---|---|---|---|---|
+| 01/11/2025 (6 meses) | 3.421 | 0,798 × 0,837 | −0,039 [−0,055; −0,024] | 57,4% | +7,4 p.p. [+5,1; +9,6] |
+| 01/01/2026 (8 meses) | 3.218 | 0,767 × 0,803 | −0,036 [−0,054; −0,018] | 58,4% | +8,4 p.p. [+6,6; +10,3] |
+| 01/03/2026 (10 meses) | 4.176 | 0,842 × 0,884 | −0,042 [−0,062; −0,022] | 57,7% | +7,7 p.p. [+5,8; +9,9] |
+| 01/05/2026 (12 meses) | 4.112 | 0,835 × 0,875 | −0,041 [−0,061; −0,018] | 57,4% | +7,4 p.p. [+5,6; +9,4] |
+
+Nas quatro origens, o modelo bate a mediana do canal no erro e na ordenação com IC acima de zero, com ganhos parecidos (−0,04 no MAE, +7 a +8 p.p. no par-a-par da mesma época), e a lacuna de 30 dias entre treino e avaliação está respeitada em todas. Contra a regressão linear, o par-a-par da mesma época também ganha nas quatro (+2,9 a +5,0 p.p., IC acima de zero), mas o par-a-par com todos os pares empata (a regressão à média já ordena bem pares de épocas diferentes, como na validação). **O ganho não depende de um período favorável.**
+
+### Treino dinâmico: exemplo com os canais de marca (21/10/2026)
+
+Para testar a tool de treino dinâmico (`treino_cliente.py`) num caso parecido com o de um cliente, os 50 canais de marca da base_v1 (fora os de demonstração) foram exportados no esquema mínimo do TAPI (`data/exemplos/base_cliente_marcas.parquet`, 16.186 posts) e treinados como se fossem a base de um cliente, com o protocolo da tool (split temporal próprio, cortes em 22/03 e 25/06/2026). No teste do próprio exemplo (2.307 posts): par-a-par na mesma época de 56,3% contra 50,0% da mediana do canal (+6,3 p.p. [+3,1; +8,4]), mas MAE-log de 0,976 contra 0,897 (+0,080 [−0,076; +0,233]). O diagnóstico é deriva: o desempenho relativo dos Shorts de marca cai ao longo do tempo (alvo mediano −0,03 no treino, −0,15 na validação e −0,23 no teste), e o modelo superestima o nível (viés mediano +0,44 no teste); regularizar mais não muda isso. Por isso o relatório da tool mede o viés e avisa quando ele passa de 0,15. Duas conclusões para a Galaxies: (1) um especialista treinado só com a base de um cliente ordena, mas precisa de volume e de dados recentes para acertar o nível; (2) para marcas, o modelo geral (treinado com criadores e marcas) erra menos (MAE-log 0,81 contra 0,90 da mediana nas marcas do teste temporal) e é o ponto de partida recomendado.
+
+### Teste prospectivo: resultados da parte complementar, com vídeo e VLM (avaliada uma vez, 21/10/2026)
+
+O computador suspendeu durante a espera e a avaliação rodou às 10h15; pelo pré-registro, entram só as extrações gravadas até 09h00 (pelo horário do arquivo, guardado em `_extraido_em` no Parquet): 586 vídeos, 583 com a parte de vídeo e 565 com a rubrica do VLM (454 em canais vistos, 132 em canais novos). É uma amostra aleatória (ordem com semente 42) dos 1.114. Tabelas em `resultados/prospectivo_video*`.
+
+| Canais vistos (454 vídeos) | MAE-log | Par-a-par mesma época | Cobertura 80% | Viés mediano |
+|---|---|---|---|---|
+| Mediana do canal | 0,765 | 50,0% | — | — |
+| v1 | 0,746 | 57,4% | 80,0% | +0,18 |
+| v2 | 0,727 | 58,1% | 81,7% | +0,13 |
+
+Diferenças (IC 95%): v1 − mediana: MAE −0,020 [−0,054; +0,014], par-a-par +7,4 p.p. [+2,6; +13,0]; v2 − mediana: MAE −0,039 [−0,078; −0,001], par-a-par +8,1 p.p. [+1,4; +15,1]; **v2 − v1: MAE −0,019 [−0,041; +0,003], par-a-par +0,7 p.p. [−2,9; +4,7]**. Canais novos (132 vídeos): MAE-log 0,903 (mediana), 0,860 (v1) e 0,819 (v2); par-a-par na mesma época 50,0%, 63,1% e 54,1% (v2 − v1: −9,0 p.p. [−14,9; +5,9]).
+
+**Leitura:** com o criativo analisado por inteiro, como a tool faz por padrão, as duas versões ordenam melhor que a mediana do canal com IC acima de zero, e a v2 continua errando menos que a v1 (mesma direção da parte principal, com IC tocando o zero numa amostra com metade do tamanho). A ordenação da v2 nos canais novos foi pior que a da v1 nesta amostra pequena (132 vídeos, 19 canais), com IC largo e no sentido oposto ao da parte principal: não muda a decisão pré-registrada (que usa a parte principal), mas é o primeiro ponto a acompanhar numa próxima coleta. O `confidence_flag` continua separando o erro (MAE-log 1,29 nos 38 sinalizados contra 0,70).
+
+### Um modelo por setor × modelo global (validação, 21/10/2026)
+
+Pergunta: vale treinar um modelo só de beleza e outro só de moda? Mesma receita da v2 (LightGBM, `configs/lgbm.yaml`, PCAs reajustados em cada treino), treinada no split de treino de cada setor (beleza 14.239 vídeos, moda 8.191) e comparada ao modelo global na validação do próprio setor. Só validação: o teste e o teste prospectivo já foram usados.
+
+| Setor (vídeos na validação) | MAE-log global × por setor | Par-a-par mesma época global × por setor | Δ par-a-par mesma época (IC 95%) | Δ MAE-log (IC 95%) |
+|---|---|---|---|---|
+| Beleza (3.149) | 0,862 × 0,853 | 57,2% × 58,7% | +1,5 p.p. [+0,2; +2,6] | −0,009 [−0,018; +0,001] |
+| Moda (1.625) | 0,716 × 0,724 | 61,9% × 61,6% | −0,4 p.p. [−2,3; +1,4] | +0,008 [−0,007; +0,022] |
+
+**Leitura:** em beleza, o modelo próprio ordena um pouco melhor (IC acima de zero); em moda, que tem metade dos dados, o modelo global empata ou fica à frente: moda aproveita os exemplos de beleza. É viável em volume (os dois setores têm milhares de vídeos), mas o ganho é do tamanho do ruído de uma única validação já muito usada, só com o LightGBM. Para adotar um modelo híbrido (beleza própria, moda global), o caminho honesto é pré-registrar e medir numa nova coleta prospectiva; até lá, o modelo global continua servido. `channel_stats` e o treino dinâmico já permitem um especialista por cliente quando houver dados.

@@ -91,6 +91,25 @@ Dois canais incluídos (Carolina Bruna e Val Petrin) não têm nenhum vídeo-alv
 
 A amostra (`data/features/amostra_vlm.txt`, semente 42) tem 2.500 vídeos do treino, 1.000 da validação e todo o teste temporal; o VLM segue a mesma amostra em outra ordem (`fila_vlm.txt`). Falhas da parte de vídeo: 136 vídeos "made for kids" (o YouTube não entrega o arquivo sem login) e 6 vídeos que pedem login sem motivo aparente; ver [FEATURES.md](FEATURES.md). Na coleta, nenhum vídeo da amostra estava removido ou privado. As medidas por vídeo ficam em `data/features/video/` e `data/features/vlm/` (um JSON por vídeo, com o modelo usado); quadros, áudios e thumbnails ficam em `data/media/`, fora do git.
 
+## Coleta do teste prospectivo (21/10/2026)
+
+Para avaliar o modelo em vídeos posteriores a toda a base (EXPERIMENTO.md, "Teste prospectivo"), foram reaproveitados os Shorts que a coleta de 12/10 já listava, mas que ainda não tinham 30 dias: os publicados entre 12/09/2026 18h57 e 21/09/2026 03h12 (UTC), que em 21/10 completaram 30 dias. Em 21/10 às 00h28 (Brasília), as curtidas, views e comentários desses 1.170 Shorts foram coletados de novo com `videos.list` (24 unidades de cota); título, descrição e tags continuam os de 12/10, mais perto da publicação.
+
+| Etapa | Vídeos |
+|---|---|
+| Shorts da coleta de 12/10 publicados depois do último vídeo da base_v1 e com 30 dias em 21/10 | 1.170 |
+| Ainda disponíveis em 21/10 | 1.170 |
+| Com curtidas visíveis | 1.168 |
+| Fora dos canais de demonstração | 1.153 |
+| Sem texto pós-publicação | 1.152 |
+| **Com 5 Shorts de histórico no canal (vídeos-alvo do teste prospectivo)** | **1.114** (852 em 143 canais vistos e 262 em 41 canais novos) |
+
+O teto de 250 vídeos por canal não se aplica (os vídeos novos não concorrem com os da janela antiga). O histórico de cada vídeo vem da base_v1, com a mesma regra de 30 dias. Diferença conhecida: as curtidas desses vídeos têm 30 a 39 dias de vida, enquanto as da base_v1 têm de 30 dias a 18 meses. Os dados ficam em `data/prospectivo/` (coleta e atributos extraídos pela Tool 1 do agente).
+
+## Base de exemplo do treino dinâmico
+
+`data/exemplos/base_cliente_marcas.parquet`: os 50 canais de marca da base_v1 (fora os de demonstração), 16.186 posts, no esquema mínimo de retreino do TAPI (`post_id`, `channel_id`, `published_at`, `caption`, `media_ref`, `metric_target`, `channel_stats_at_collection`, `sector`, mais `description`, `tags`, `channel_type`, `duration_s`, `category_id` e `collected_at`). Serve para demonstrar e testar a tool `treinar_modelo_cliente` com uma base parecida com a de um cliente da Galaxies (`python -m galaxies_tool.treino_cliente exemplo`).
+
 ## Filtros aplicados
 
 ### Vídeos
