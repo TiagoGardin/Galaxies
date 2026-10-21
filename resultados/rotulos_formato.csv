@@ -1,17 +1,17 @@
 fonte,formato,n_real,n_previsto,precisao,recall
-texto (bloco B),grwm,7,4,0.75,0.42857142857142855
-texto (bloco B),tutorial,11,11,0.18181818181818182,0.18181818181818182
-texto (bloco B),haul,7,4,0.5,0.2857142857142857
+texto (bloco B),grwm,6,4,0.5,0.3333333333333333
+texto (bloco B),tutorial,12,11,0.18181818181818182,0.16666666666666666
+texto (bloco B),haul,6,4,0.5,0.3333333333333333
 texto (bloco B),review,13,5,0.4,0.15384615384615385
-texto (bloco B),provador,16,8,0.75,0.375
+texto (bloco B),provador,14,8,0.75,0.42857142857142855
 texto (bloco B),antes_depois,3,4,0.0,0.0
 texto (bloco B),trend,9,3,0.6666666666666666,0.2222222222222222
 VLM (bloco D),antes_depois,3,0,,0.0
-VLM (bloco D),grwm,7,2,1.0,0.2857142857142857
-VLM (bloco D),haul,7,8,0.5,0.5714285714285714
+VLM (bloco D),grwm,6,2,1.0,0.3333333333333333
+VLM (bloco D),haul,6,8,0.5,0.6666666666666666
 VLM (bloco D),humor,7,5,0.8,0.5714285714285714
-VLM (bloco D),outro,27,21,0.47619047619047616,0.37037037037037035
-VLM (bloco D),provador,16,0,,0.0
+VLM (bloco D),outro,30,21,0.47619047619047616,0.3333333333333333
+VLM (bloco D),provador,14,0,,0.0
 VLM (bloco D),review,13,23,0.391304347826087,0.6923076923076923
 VLM (bloco D),trend,9,8,0.625,0.5555555555555556
-VLM (bloco D),tutorial,11,33,0.30303030303030304,0.9090909090909091
+VLM (bloco D),tutorial,12,33,0.3333333333333333,0.9166666666666666
