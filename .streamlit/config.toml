@@ -1,0 +1,11 @@
+# Tema da interface opcional (src/galaxies_tool/app.py). Cores da paleta validada na skill de dataviz.
+[theme]
+base = "light"
+primaryColor = "#2a78d6"
+backgroundColor = "#fcfcfb"
+secondaryBackgroundColor = "#f3f2ef"
+textColor = "#1b1b1a"
+font = "sans serif"
+
+[browser]
+gatherUsageStats = false
