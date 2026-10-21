@@ -1,21 +1,21 @@
 url,setor,tipo_canal,curtidas,mediana_canal,razao_real,razao_prevista,baixa_confianca,top_fatores,classificacao_manual
-https://www.youtube.com/shorts/J4IDAk0g-v4,beleza,criador,122359,50,2399.22,1.65,True,log_mediana_likes_ult20 (+35%); emb_texto (+8%); emb_thumb (+6%),
-https://www.youtube.com/shorts/tD6kK2wcIzU,beleza,criador,76878,50,1507.43,1.61,False,log_mediana_likes_ult20 (+32%); emb_texto (+15%); emb_gancho (+7%),
-https://www.youtube.com/shorts/1QLEG7xbe0c,beleza,criador,64943,50,1273.41,1.44,False,log_mediana_likes_ult20 (+35%); emb_gancho (+9%); duracao_s (-5%),
-https://www.youtube.com/shorts/i23pmABiJHU,beleza,criador,38982,54,708.78,1.35,False,log_mediana_likes_ult20 (+23%); emb_texto (-12%); voz_por_segundo (+13%),
-https://www.youtube.com/shorts/7G_rmN44bhI,beleza,marca,39030,186,208.17,0.46,True,emb_texto (-22%); duracao_s (-12%); std_log_likes_ult20 (-12%),
-https://www.youtube.com/shorts/cCyG9d1rblg,beleza,criador,154406,362,424.78,1.24,False,duracao_s (+37%); emb_thumb (-15%); voz_por_segundo (+8%),
-https://www.youtube.com/shorts/I7e0mdxVx1Q,beleza,criador,3,4758,0.0,0.27,True,log_mediana_likes_ult20 (-30%); emb_texto (-26%); tendencia (-20%),
-https://www.youtube.com/shorts/isQLRyWk0y0,beleza,criador,10457,44,232.4,1.04,False,log_mediana_likes_ult20 (+23%); tendencia (+13%); duracao_s (-10%),
-https://www.youtube.com/shorts/V64jdX7xd9M,beleza,criador,85559,320,266.13,1.27,True,emb_thumb (+19%); emb_texto (+18%); std_log_likes_ult20 (-7%),
-https://www.youtube.com/shorts/bZGhsL10KAQ,beleza,criador,2,1271,0.0,0.47,False,emb_texto (-24%); log_mediana_likes_ult20 (-18%); duracao_s (-13%),
-https://www.youtube.com/shorts/mY4AbZgZzcI,beleza,criador,189555,538,351.68,2.1,True,n_shorts_anteriores (+16%); emb_texto (+16%); emb_thumb (+9%),
-https://www.youtube.com/shorts/HiwElJQVkrc,beleza,criador,12399,106,115.89,0.82,True,tendencia (-33%); emb_texto (+14%); log_mediana_likes_ult20 (+14%),
-https://www.youtube.com/shorts/o7NkJTM3LVQ,moda,criador,11339,58,192.2,1.6,False,duracao_s (+23%); log_mediana_likes_ult20 (+18%); tendencia (+13%),
-https://www.youtube.com/shorts/leQQ4MAhf6Y,beleza,criador,34409,406,84.44,0.71,False,duracao_s (-14%); emb_thumb (+14%); energia_rms (-6%),
-https://www.youtube.com/shorts/HyuRImLxJaE,beleza,criador,8609,46,181.26,1.55,False,log_mediana_likes_ult20 (+34%); emb_texto (-11%); emb_thumb (+11%),
-https://www.youtube.com/shorts/beB1VbGsvnw,beleza,criador,9526,46,200.57,1.72,False,log_mediana_likes_ult20 (+37%); emb_texto (+16%); duracao_s (-6%),
-https://www.youtube.com/shorts/YX-1lb4fomo,beleza,criador,42212,330,127.53,1.26,False,emb_thumb (+44%); duracao_s (-9%); thumb_brilho (-6%),
-https://www.youtube.com/shorts/sjS8ec5BrxA,beleza,criador,15,4758,0.0,0.33,True,log_mediana_likes_ult20 (-30%); tendencia (-20%); thumb_saturacao (-13%),
-https://www.youtube.com/shorts/xxO-JR6R4tg,beleza,criador,18,4232,0.0,0.43,True,emb_texto (-36%); log_mediana_likes_ult20 (-33%); tendencia (+25%),
-https://www.youtube.com/shorts/6LcUK1TVqrg,beleza,marca,784,4,142.73,1.55,True,log_mediana_likes_ult20 (+81%); emb_thumb (-15%); duracao_s (+9%),
+https://www.youtube.com/shorts/J4IDAk0g-v4,beleza,criador,122359,50,2399.22,1.65,True,log_mediana_likes_ult20 (+35%); emb_texto (+8%); emb_thumb (+6%),publi — link para compra
+https://www.youtube.com/shorts/tD6kK2wcIzU,beleza,criador,76878,50,1507.43,1.61,False,log_mediana_likes_ult20 (+32%); emb_texto (+15%); emb_gancho (+7%),publi — link para compra
+https://www.youtube.com/shorts/1QLEG7xbe0c,beleza,criador,64943,50,1273.41,1.44,False,log_mediana_likes_ult20 (+35%); emb_gancho (+9%); duracao_s (-5%),publi — link para compra
+https://www.youtube.com/shorts/i23pmABiJHU,beleza,criador,38982,54,708.78,1.35,False,log_mediana_likes_ult20 (+23%); emb_texto (-12%); voz_por_segundo (+13%),publi — link para compra
+https://www.youtube.com/shorts/7G_rmN44bhI,beleza,marca,39030,186,208.17,0.46,True,emb_texto (-22%); duracao_s (-12%); std_log_likes_ult20 (-12%),publi — com collab
+https://www.youtube.com/shorts/cCyG9d1rblg,beleza,criador,154406,362,424.78,1.24,False,duracao_s (+37%); emb_thumb (-15%); voz_por_segundo (+8%),publi — link para compra
+https://www.youtube.com/shorts/I7e0mdxVx1Q,beleza,criador,3,4758,0.0,0.27,True,log_mediana_likes_ult20 (-30%); emb_texto (-26%); tendencia (-20%),publi
+https://www.youtube.com/shorts/isQLRyWk0y0,beleza,criador,10457,44,232.4,1.04,False,log_mediana_likes_ult20 (+23%); tendencia (+13%); duracao_s (-10%),mídia paga
+https://www.youtube.com/shorts/V64jdX7xd9M,beleza,criador,85559,320,266.13,1.27,True,emb_thumb (+19%); emb_texto (+18%); std_log_likes_ult20 (-7%),trend — vídeo com tom humorístico
+https://www.youtube.com/shorts/bZGhsL10KAQ,beleza,criador,2,1271,0.0,0.47,False,emb_texto (-24%); log_mediana_likes_ult20 (-18%); duracao_s (-13%),publi
+https://www.youtube.com/shorts/mY4AbZgZzcI,beleza,criador,189555,538,351.68,2.1,True,n_shorts_anteriores (+16%); emb_texto (+16%); emb_thumb (+9%),viral orgânico
+https://www.youtube.com/shorts/HiwElJQVkrc,beleza,criador,12399,106,115.89,0.82,True,tendencia (-33%); emb_texto (+14%); log_mediana_likes_ult20 (+14%),trend — vídeo com tom humorístico
+https://www.youtube.com/shorts/o7NkJTM3LVQ,moda,criador,11339,58,192.2,1.6,False,duracao_s (+23%); log_mediana_likes_ult20 (+18%); tendencia (+13%),viral orgânico
+https://www.youtube.com/shorts/leQQ4MAhf6Y,beleza,criador,34409,406,84.44,0.71,False,duracao_s (-14%); emb_thumb (+14%); energia_rms (-6%),viral orgânico
+https://www.youtube.com/shorts/HyuRImLxJaE,beleza,criador,8609,46,181.26,1.55,False,log_mediana_likes_ult20 (+34%); emb_texto (-11%); emb_thumb (+11%),publi — link para compra
+https://www.youtube.com/shorts/beB1VbGsvnw,beleza,criador,9526,46,200.57,1.72,False,log_mediana_likes_ult20 (+37%); emb_texto (+16%); duracao_s (-6%),publi — link para compra
+https://www.youtube.com/shorts/YX-1lb4fomo,beleza,criador,42212,330,127.53,1.26,False,emb_thumb (+44%); duracao_s (-9%); thumb_brilho (-6%),publi — link para compra
+https://www.youtube.com/shorts/sjS8ec5BrxA,beleza,criador,15,4758,0.0,0.33,True,log_mediana_likes_ult20 (-30%); tendencia (-20%); thumb_saturacao (-13%),publi
+https://www.youtube.com/shorts/xxO-JR6R4tg,beleza,criador,18,4232,0.0,0.43,True,emb_texto (-36%); log_mediana_likes_ult20 (-33%); tendencia (+25%),publi
+https://www.youtube.com/shorts/6LcUK1TVqrg,beleza,marca,784,4,142.73,1.55,True,log_mediana_likes_ult20 (+81%); emb_thumb (-15%); duracao_s (+9%),publi

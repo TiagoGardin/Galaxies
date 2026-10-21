@@ -208,7 +208,7 @@ Hipóteses registradas antes do treino e protocolo completo: [docs/EXPERIMENTO.m
   | + D VLM | 0,405 | 0,760 | na amostra com rubrica: MAE −0,009 [−0,014; −0,003], par-a-par mesma época +2,3 p.p. [+0,4; +4,4]; controle de ruído sem ganho |
 
 - **Canais nunca vistos** (1.146 vídeos de 51 canais): o modelo empata com a mediana do canal no erro (0,843 × 0,830) e ordena pouco acima do acaso (52,3% na mesma época).
-- **Onde erra:** virais (cobertura do intervalo de 43%), anúncios com mídia paga e publis de cupom; canais pequenos e instáveis. O `confidence_flag` ligou em 16% dos vídeos, que tiveram MAE-log de 1,10 contra 0,70 dos demais.
+- **Onde erra:** virais (cobertura do intervalo de 43%), conteúdo patrocinado (14 dos 20 maiores erros são publis: com link de compra, explodem muito acima do canal; de criadores grandes, às vezes são ignoradas), mídia paga; canais pequenos e instáveis. O `confidence_flag` ligou em 16% dos vídeos, que tiveram MAE-log de 1,10 contra 0,70 dos demais.
 - **LLM zero-shot × modelo:** a nota de "potencial viral" do VLM acerta 52,4% dos pares da mesma época, contra 60,2% do modelo nos mesmos vídeos.
 - **Hipóteses:** H1, H2 e H3 confirmadas; H4 confirmada para canais novos e parcial para marcas; H5 (binárias do VLM > notas) não confirmada. Detalhes, recortes e análise de erros em [docs/EXPERIMENTO.md](docs/EXPERIMENTO.md).
 
