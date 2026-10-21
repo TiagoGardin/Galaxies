@@ -109,6 +109,7 @@ uv run python -m galaxies_tool.comparar_modelos      # LightGBM × CatBoost × X
 uv run python -m galaxies_tool.artefato              # artefato v1: models/lgbm_final.joblib (+ .json)
 uv run python -m galaxies_tool.avaliacao_final       # avaliação ÚNICA no teste → resultados/teste_*
 uv run python -m galaxies_tool.backtest              # backtest com origem móvel (treino + validação)
+uv run python -m galaxies_tool.por_setor             # um modelo por setor × global (só validação)
 uv run python -m galaxies_tool.artefato --versao lgbm_v2 --variante v2   # v2: PCA 32 + comparáveis (RAG)
 uv run python -m galaxies_tool.prospectivo coletar   # teste prospectivo: Shorts publicados depois da base
 uv run python -m galaxies_tool.prospectivo extrair [--video]             # Tool 1 do agente em cada vídeo
@@ -118,8 +119,9 @@ uv run mlflow ui --backend-store-uri sqlite:///mlflow.db --port 5001   # registr
 # 4. Agente
 uv run python -m galaxies_tool.demo                  # demonstração: canais fora do treino, previsto × real
 uv run python -m galaxies_tool.demo --salvas         # plano B: reimprime as respostas salvas, sem rede
-uv sync --group app && uv run streamlit run src/galaxies_tool/app.py   # interface opcional (ao vivo ou salvas)
+uv run --group app streamlit run src/galaxies_tool/app.py              # interface opcional (ao vivo ou demo salva)
 uv run python -m galaxies_tool.servidor_mcp          # servidor MCP (stdio); --http para HTTP em 127.0.0.1:8000
+uv run --group api uvicorn galaxies_tool.api:app --port 8001           # API REST opcional (docs em /docs)
 
 # 5. Treino dinâmico (base de um cliente no esquema mínimo do TAPI)
 uv run python -m galaxies_tool.treino_cliente exemplo                    # base de exemplo: canais de marca
@@ -137,7 +139,9 @@ print(r.predicted_metric, r.interval_low, r.interval_high, r.confidence_flag, r.
 what_if_legendas(entrada, ["Tutorial: make em 60 s", "Resenha sincera: vale a pena?"])  # mesma capa e vídeo
 ```
 
-**Interface opcional (Streamlit):** mostra cada tool do grafo terminando em tempo real, o ranking com os intervalos, os fatores do SHAP (azul aumenta, vermelho reduz), os comparáveis e a inspeção dos atributos; o modo "respostas salvas" abre a demonstração sem rede. É uma vitrine sobre a mesma função Python, não um produto (o consumo previsto é pela tool).
+**Interface opcional (Streamlit):** mostra cada tool do grafo terminando em tempo real, o ranking com os intervalos e a mediana do canal, os fatores do SHAP (azul aumenta, vermelho reduz), os Shorts comparáveis com miniatura, o vídeo embutido e a inspeção dos atributos, em tema claro ou escuro; o modo "Demo salva" abre a demonstração sem rede. É uma vitrine sobre a mesma função Python, não um produto (o consumo previsto é pela tool).
+
+**API REST opcional (FastAPI):** os mesmos endpoints da tool, com o mesmo contrato Pydantic: `POST /predict`, `POST /rank`, `POST /what-if/horarios`, `POST /what-if/legendas`, `POST /train` (treino dinâmico), `GET /modelo` (model card) e `GET /saude`. Entrada inválida volta como 422; erro de domínio (ex.: canal fora da base sem `channel_stats`), como 400.
 
 **Testado com o [MCP Inspector](https://github.com/modelcontextprotocol/inspector)** (modo de linha de comando; lista as tools, lê o `modelo://card` e chama `prever_criativo`, devolvendo os mesmos números da função Python). O teste `tests/test_mcp.py` faz o mesmo com o cliente do SDK oficial.
 
@@ -168,7 +172,7 @@ npx @modelcontextprotocol/inspector@0.17.2 --cli uv run --directory "$PWD" pytho
 | VLM | `gemini-3.1-flash-lite` (google-genai 2.30), temperatura 0, saída estruturada | Aceita a URL do YouTube; o 3.5 vivia sobrecarregado |
 | Explicabilidade | TreeSHAP exato dos dois modelos (média) + subagente explicador (`gemini-3.5-flash`, reserva `gemini-3.1-flash-lite`) com validador | Atribuição exata e explicação conferível |
 | Agente | LangGraph 1.2 (grafo fixo) | Extração, contexto e previsão sempre na mesma ordem |
-| Integração | Função Python + servidor MCP (SDK oficial `mcp` 2.3) | Consumo como tool pela Galaxies |
+| Integração | Função Python + servidor MCP (SDK oficial `mcp` 2.3) + API REST opcional (FastAPI) | Consumo como tool pela Galaxies; a API atende quem não usa MCP |
 | Treino dinâmico | pandera (esquema mínimo) + o mesmo pipeline de features, artefato e métricas | Um modelo especialista por cliente, sem código novo |
 | Experimentos | MLflow 3.17 (versão e hash da base, cortes, parâmetros, métricas, SHAP) + pytest | Registro reprodutível |
 

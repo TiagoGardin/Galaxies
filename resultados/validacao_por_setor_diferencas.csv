@@ -1,0 +1,3 @@
+setor,comparacao,n,mae_log,acuracia_par_a_par,acuracia_par_a_par_7d,spearman_intra_canal
+beleza,por setor − global,3149,-0.0085 [-0.0176; +0.0005],+0.012 [+0.001; +0.022],+0.015 [+0.002; +0.026],+0.015 [-0.019; +0.048]
+moda,por setor − global,1625,+0.0079 [-0.0067; +0.0216],-0.003 [-0.019; +0.010],-0.004 [-0.023; +0.014],-0.010 [-0.057; +0.033]

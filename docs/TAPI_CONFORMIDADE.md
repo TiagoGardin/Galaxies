@@ -23,7 +23,7 @@ Resumo: todo o núcleo obrigatório (seção 4.1) e todos os entregáveis (seç�
 | Setores | Pelo menos dois de moda, beleza e automotivo | ✅ | Moda e beleza. Automotivo é aceito pela tool, mas sinalizado (`setor_fora_do_treino`) |
 | Multimodal | Obrigatório em versão leve: thumbnail/frames + transcrição + VLM | ✅ | SigLIP 2 na thumbnail e nos quadros do gancho, faster-whisper, rubrica do Gemini |
 | Acurácia | Bater o baseline e acertar a ordenação | ✅ | Teste temporal: 59,1% dos pares da mesma época (mediana do canal: 50%), MAE-log 0,760 × 0,835. Teste prospectivo: 61,7% (v2) |
-| Interface | Streamlit/Gradio opcional; tool obrigatória (função + MCP) | ✅ | Função + MCP, testado com o MCP Inspector e com o cliente do SDK oficial. Interface Streamlit opcional (`app.py`), que mostra cada tool do grafo terminando e abre a demo sem rede |
+| Interface | Streamlit/Gradio opcional; tool obrigatória (função + MCP) | ✅ | Função + MCP, testado com o MCP Inspector e com o cliente do SDK oficial. Opcionais: interface Streamlit (`app.py`), que mostra cada tool do grafo terminando e abre a demo sem rede, e API REST com FastAPI (`api.py`, endpoints `/predict`, `/rank`, `/train`) |
 | Explicabilidade | SHAP + subagente em linguagem natural | ✅ | TreeSHAP exato dos dois modelos + explicador LLM com validador de fidelidade e texto padrão de reserva |
 | Agnosticismo (opcional) | Treino reexecutável sobre qualquer base com esquema mínimo | ✅ | `treino_cliente.py`, tool MCP `treinar_modelo_cliente` |
 
@@ -121,13 +121,13 @@ Resumo: todo o núcleo obrigatório (seção 4.1) e todos os entregáveis (seç�
 
 ## 8. Tecnologias
 
-Todas as recomendações principais foram seguidas (google-api-python-client, yt-dlp, pandas/Parquet, LightGBM e CatBoost, scikit-learn, sentence-transformers com `paraphrase-multilingual-mpnet-base-v2`, SigLIP 2, faster-whisper, Gemini Flash, SHAP exato nativo, LangGraph, SDK oficial do MCP, MLflow, pytest). As escolhas e versões estão justificadas na seção 5 do README. Streamlit e Plotly (opcionais) na interface `app.py`, num grupo de dependências à parte (`uv sync --group app`). Não usados: Colab/Kaggle (tudo rodou numa máquina local com Apple M4).
+Todas as recomendações principais foram seguidas (google-api-python-client, yt-dlp, pandas/Parquet, LightGBM e CatBoost, scikit-learn, sentence-transformers com `paraphrase-multilingual-mpnet-base-v2`, SigLIP 2, faster-whisper, Gemini Flash, SHAP exato nativo, LangGraph, SDK oficial do MCP, MLflow, pytest). As escolhas e versões estão justificadas na seção 5 do README. Streamlit e Plotly (opcionais) na interface `app.py` e FastAPI na API REST opcional (`api.py`), cada um num grupo de dependências à parte (`--group app`, `--group api`). Não usados: Colab/Kaggle (tudo rodou numa máquina local com Apple M4).
 
 ## 10. Entregáveis
 
 | Entregável | | Onde |
 |---|---|---|
-| Agente em funcionamento, exposto como função e servidor MCP | ✅ | README seção 4 |
+| Agente em funcionamento, exposto como função e servidor MCP | ✅ | README seção 4; também como API REST opcional (`api.py`) |
 | Modelo treinado: base documentada, features declaradas, comparação com o baseline, artefatos versionados | ✅ | `models/lgbm_final.*` (v1) e `models/lgbm_v2.*` (v2, servida), DATA_CARD, FEATURES, MODEL_CARD |
 | Experimento: hipótese, validação temporal, erro absoluto e relativo, ordenação, cobertura, ganho multimodal, análise de erros | ✅ | EXPERIMENTO.md (hipóteses registradas antes do treino) |
 | Demonstração sobre um conjunto de criativos | ✅ | `python -m galaxies_tool.demo` (12 Shorts de 4 canais fora do treino; `--salvas` sem rede) e a interface `app.py` |

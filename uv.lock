@@ -715,6 +715,10 @@ dependencies = [
 ]
 
 [package.dev-dependencies]
+api = [
+    { name = "fastapi" },
+    { name = "uvicorn" },
+]
 app = [
     { name = "streamlit" },
 ]
@@ -755,6 +759,10 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
+api = [
+    { name = "fastapi", specifier = ">=0.143" },
+    { name = "uvicorn", specifier = ">=0.54" },
+]
 app = [{ name = "streamlit", specifier = ">=1.66.0" }]
 dev = [{ name = "pytest", specifier = ">=9.1.1" }]
 

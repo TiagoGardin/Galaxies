@@ -397,7 +397,7 @@ Diferenças (IC 95%): v1 − mediana: MAE −0,020 [−0,054; +0,014], par-a-par
 
 ### Um modelo por setor × modelo global (validação, 21/10/2026)
 
-Pergunta: vale treinar um modelo só de beleza e outro só de moda? Mesma receita da v2 (LightGBM, `configs/lgbm.yaml`, PCAs reajustados em cada treino), treinada no split de treino de cada setor (beleza 14.239 vídeos, moda 8.191) e comparada ao modelo global na validação do próprio setor. Só validação: o teste e o teste prospectivo já foram usados.
+Pergunta: vale treinar um modelo só de beleza e outro só de moda? `python -m galaxies_tool.por_setor` → `resultados/validacao_por_setor*.csv`. Mesma receita da v2 (LightGBM, `configs/lgbm.yaml`, PCAs reajustados em cada treino), treinada no split de treino de cada setor (beleza 14.239 vídeos, moda 8.191) e comparada ao modelo global na validação do próprio setor. Só validação: o teste e o teste prospectivo já foram usados.
 
 | Setor (vídeos na validação) | MAE-log global × por setor | Par-a-par mesma época global × por setor | Δ par-a-par mesma época (IC 95%) | Δ MAE-log (IC 95%) |
 |---|---|---|---|---|
