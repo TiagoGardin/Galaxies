@@ -70,6 +70,28 @@ criativo (URL do YouTube, vídeo/imagem local ou texto) + legenda + data planeja
 
 Tools do servidor MCP: `prever_criativo`, `ordenar_criativos` (ranking com a chance de cada criativo superar o seguinte), `what_if_horarios`, `what_if_legendas` e `treinar_modelo_cliente` (treino dinâmico com a base de um cliente); recurso `modelo://card` com a versão, a calibração e as métricas do modelo servido.
 
+**Estrutura do repositório**
+
+```
+src/galaxies_tool/     código (um módulo por etapa; cada um tem "Uso:" na docstring)
+docs/                  DATA_CARD, FEATURES, MODEL_CARD, EXPERIMENTO e TAPI_CONFORMIDADE
+data/                  canais (CSVs), coleta bruta (raw/), base processada (processed/), features (features/),
+                       teste prospectivo (prospectivo/), base de exemplo do treino dinâmico (exemplos/) e rótulos
+models/                artefatos versionados: lgbm_v2 (servido) e lgbm_final (v1, a do teste temporal)
+resultados/            tabelas de validação, teste, backtest, prospectivo, demonstração e rótulos
+configs/lgbm.yaml      hiperparâmetros escolhidos pelo Optuna
+tests/                 pytest (o marcador slow carrega os modelos de extração)
+.streamlit/            tema da interface opcional
+```
+
+| Etapa | Módulos |
+|---|---|
+| Base de dados | `youtube_api` (cliente da API com contagem de cota), `descobrir_canais`, `verificar_canais`, `coletar`, `regras` (regras do data card), `processar`, `splits` |
+| Features | `features` (blocos A e B), `embeddings_texto`, `thumbs` (thumbnail e gancho), `video`, `amostra_vlm`, `vlm`, `multimodal` (vídeo e VLM → colunas), `rag` (comparáveis, v2) |
+| Modelo e experimento | `modelo` (blocos, treino, ablação), `metricas`, `ajustar` (Optuna), `comparar_modelos`, `artefato`, `avaliacao_final`, `backtest`, `por_setor`, `rotulos` |
+| Teste prospectivo | `prospectivo` (coleta e extração), `avaliacao_prospectiva` (avaliação única) |
+| Agente e integração | `contrato` (Pydantic), `extracao` (Tool 1), `canal` (Tool 2), `previsao` (Tools 3 e 4), `agente` (LangGraph), `servidor_mcp`, `api` (FastAPI), `app` (Streamlit), `demo`, `treino_cliente` (treino dinâmico) |
+
 ## 4. Instalação e execução
 
 **Pré-requisitos:** [uv](https://docs.astral.sh/uv/) (instala o Python 3.12 e as versões exatas de `uv.lock`), `ffmpeg` e [Deno](https://deno.com/) (exigido pelo yt-dlp atual) para a parte de vídeo, uma chave da YouTube Data API v3 e uma chave do Gemini (Google AI Studio).
